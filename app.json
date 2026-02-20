@@ -1,0 +1,60 @@
+{
+  "expo": {
+    "name": "Furniq",
+    "slug": "furniq",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1A5F5A"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.furniq.app",
+      "teamId": "N9T69SSWGJ",
+      "isRemoteJsDebuggingEnabled": false,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Wir benötigen Zugriff auf Ihre Kamera, um Fotos von Möbeln aufzunehmen.",
+        "NSPhotoLibraryUsageDescription": "Wir benötigen Zugriff auf Ihre Fotobibliothek, um Bilder von Möbeln auszuwählen.",
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#1A5F5A"
+      },
+      "edgeToEdgeEnabled": true,
+      "package": "com.furniq.app",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Wir benötigen Zugriff auf Ihre Fotos, um Möbelbilder auszuwählen.",
+          "cameraPermission": "Wir benötigen Zugriff auf Ihre Kamera, um Fotos von Möbeln aufzunehmen."
+        }
+      ],
+      "expo-web-browser"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "c83b0d82-effe-481a-8950-d4b83ef2c72f"
+      }
+    },
+    "owner": "mekkes"
+  }
+}
