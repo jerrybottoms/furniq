@@ -1,5 +1,5 @@
 // Favorites Screen - Phase 5d
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,13 +7,13 @@ import {
   Image,
   TouchableOpacity,
   StyleSheet,
-  Linking,
   Alert,
-  Share,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { FurnitureItem } from '../types';
 import { getFavorites, removeFavorite } from '../services/supabase';
+import { useTheme } from '../context/ThemeContext';
+import { shareFavorites } from '../utils/share';
 
 // ========== HELPER ==========
 function formatPrice(price: number, currency: string): string {
@@ -23,9 +23,8 @@ function formatPrice(price: number, currency: string): string {
   }
   return `${symbol}${price.toFixed(2)}`;
 }
-
-// ========== SCREEN ==========
 export default function FavoritesScreen({ navigation }: any) {
+  const { theme } = useTheme();
   const [favorites, setFavorites] = useState<FurnitureItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -71,80 +70,78 @@ export default function FavoritesScreen({ navigation }: any) {
   };
 
   const shareAllFavorites = async () => {
-    if (favorites.length === 0) return;
-    
-    const listText = favorites
-      .map((item, index) => `${index + 1}. ${item.name} - ${formatPrice(item.price, item.currency)} (${item.shop})`)
-      .join('\n');
-    
-    const message = `🛋️ Meine Möbel-Wunschliste\n\n${listText}\n\n➡️ Entdeckt mit Furniq`;
+    if (favorites.length === 0) {
+      Alert.alert(
+        'Keine Favoriten',
+        'Du hast noch keine Favoriten zum Teilen.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
     
     try {
-      await Share.share({
-        message,
-        title: 'Meine Möbel-Wunschliste',
-      });
+      await shareFavorites(favorites);
     } catch (error) {
-      console.error('Error sharing:', error);
+      Alert.alert('Fehler', 'Teilen war nicht möglich.');
     }
   };
 
   const renderItem = ({ item }: { item: FurnitureItem }) => (
     <TouchableOpacity
-      style={styles.productCard}
+      style={[styles.productCard, { backgroundColor: theme.card }]}
       onPress={() => openProduct(item)}
       onLongPress={() => deleteFavorite(item)}
     >
       <Image
         source={{ uri: item.imageUrl }}
-        style={styles.productImage}
+        style={[styles.productImage, { backgroundColor: theme.surface }]}
       />
       <View style={styles.productInfo}>
-        <Text style={styles.productName} numberOfLines={2}>
+        <Text style={[styles.productName, { color: theme.text }]} numberOfLines={2}>
           {item.name}
         </Text>
         <View style={styles.productMeta}>
-          <Text style={styles.productPrice}>
+          <Text style={[styles.productPrice, { color: theme.success }]}>
             {formatPrice(item.price, item.currency)}
           </Text>
-          <View style={styles.shopBadge}>
-            <Text style={styles.shopBadgeText}>{item.shop}</Text>
+          <View style={[styles.shopBadge, { backgroundColor: theme.surface }]}>
+            <Text style={[styles.shopBadgeText, { color: theme.primary }]}>{item.shop}</Text>
           </View>
         </View>
         <TouchableOpacity
-          style={styles.buyButton}
+          style={[styles.buyButton, { backgroundColor: theme.primary }]}
           onPress={() => openProduct(item)}
         >
-          <Text style={styles.buyButtonText}>Zum Shop →</Text>
+          <Text style={[styles.buyButtonText, { color: theme.headerText }]}>Zum Shop →</Text>
         </TouchableOpacity>
       </View>
     </TouchableOpacity>
   );
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.surface }]}>
       {favorites.length === 0 && !loading ? (
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyEmoji}>❤️</Text>
-          <Text style={styles.emptyTitle}>Keine Favoriten</Text>
-          <Text style={styles.emptyText}>
+          <Text style={[styles.emptyTitle, { color: theme.text }]}>Keine Favoriten</Text>
+          <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
             Speichere Produkte, die du später kaufen möchtest.
           </Text>
           <TouchableOpacity
-            style={styles.searchButton}
+            style={[styles.searchButton, { backgroundColor: theme.primary }]}
             onPress={() => navigation.navigate('Home')}
           >
-            <Text style={styles.searchButtonText}>Jetzt suchen</Text>
+            <Text style={[styles.searchButtonText, { color: theme.headerText }]}>Jetzt suchen</Text>
           </TouchableOpacity>
         </View>
       ) : (
         <>
           {/* Share Button */}
           <TouchableOpacity
-            style={styles.shareAllButton}
+            style={[styles.shareAllButton, { backgroundColor: theme.primary }]}
             onPress={shareAllFavorites}
           >
-            <Text style={styles.shareAllButtonText}>📤 Wunschliste teilen</Text>
+            <Text style={[styles.shareAllButtonText, { color: theme.headerText }]}>📤 Wunschliste teilen</Text>
           </TouchableOpacity>
           
           <FlatList
@@ -166,14 +163,12 @@ export default function FavoritesScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
   },
   listContent: {
     padding: 12,
     gap: 12,
   },
   productCard: {
-    backgroundColor: '#FFF',
     borderRadius: 12,
     overflow: 'hidden',
     flexDirection: 'row',
@@ -186,7 +181,6 @@ const styles = StyleSheet.create({
   productImage: {
     width: 110,
     height: 130,
-    backgroundColor: '#F0F0F0',
   },
   productInfo: {
     flex: 1,
@@ -196,7 +190,6 @@ const styles = StyleSheet.create({
   productName: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#333',
     marginBottom: 4,
   },
   productMeta: {
@@ -208,21 +201,17 @@ const styles = StyleSheet.create({
   productPrice: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#10B981',
   },
   shopBadge: {
-    backgroundColor: '#F0F4FF',
     paddingVertical: 2,
     paddingHorizontal: 8,
     borderRadius: 8,
   },
   shopBadgeText: {
     fontSize: 11,
-    color: '#4A6FA5',
     fontWeight: '500',
   },
   buyButton: {
-    backgroundColor: '#1A5F5A',
     paddingVertical: 8,
     paddingHorizontal: 14,
     borderRadius: 8,
@@ -246,17 +235,14 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#333',
     marginBottom: 8,
   },
   emptyText: {
     fontSize: 14,
-    color: '#666',
     textAlign: 'center',
     marginBottom: 24,
   },
   searchButton: {
-    backgroundColor: '#1A5F5A',
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 8,
@@ -267,7 +253,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   shareAllButton: {
-    backgroundColor: '#1A5F5A',
     marginHorizontal: 16,
     marginTop: 12,
     marginBottom: 8,

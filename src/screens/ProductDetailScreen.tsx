@@ -1,5 +1,5 @@
 // Product Detail Screen - Shop-like product page
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,13 +7,22 @@ import {
   ScrollView,
   TouchableOpacity,
   Dimensions,
-  Share,
   Platform,
+  Animated,
+  StatusBar,
+  TextInput,
+  Modal,
+  KeyboardAvoidingView,
+  Pressable,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import * as WebBrowser from 'expo-web-browser';
+import { Linking } from 'react-native';
 import { getProductById, getSimilarProducts, FurnitureItem } from '../data/catalog';
+import { useTheme } from '../context/ThemeContext';
+import { PriceTrackerService, PriceAlert } from '../services/priceTracker';
+import { shareProduct } from '../utils/share';
 
 type RootStackParamList = {
   MainTabs: undefined;
@@ -24,36 +33,107 @@ type RootStackParamList = {
 const { width } = Dimensions.get('window');
 
 export default function ProductDetailScreen() {
+  const { theme, isDark } = useTheme();
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
   const route = useRoute<RouteProp<RootStackParamList, 'ProductDetail'>>();
   
   // Handle case where params might be undefined
   const productId = route.params?.productId;
-  
-  if (!productId) {
-    return (
-      <View style={styles.loadingContainer}>
-        <Text>Keine Produkt-ID gefunden</Text>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={{ color: '#1A5F5A', marginTop: 10 }}>Zurück</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
 
   const [product, setProduct] = useState<FurnitureItem | null>(null);
   const [similarProducts, setSimilarProducts] = useState<FurnitureItem[]>([]);
   const [isFavorite, setIsFavorite] = useState(false);
-  const [priceAlert, setPriceAlert] = useState(false);
+  const [priceAlertActive, setPriceAlertActive] = useState(false);
+  const [currentAlert, setCurrentAlert] = useState<PriceAlert | null>(null);
+  const [targetPrice, setTargetPrice] = useState('');
+  const [showAlertModal, setShowAlertModal] = useState(false);
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
+  
+  // Animated header
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const headerOpacity = scrollY.interpolate({
+    inputRange: [0, 200],
+    outputRange: [0, 1],
+    extrapolate: 'clamp',
+  });
 
   useEffect(() => {
+    if (!productId) return;
     const found = getProductById(productId);
     if (found) {
       setProduct(found);
       setSimilarProducts(getSimilarProducts(found, 6));
     }
   }, [productId]);
+
+  // Check for existing alert when product loads
+  useEffect(() => {
+    if (productId) {
+      checkExistingAlert();
+    }
+  }, [productId]);
+
+  const checkExistingAlert = async () => {
+    if (!productId) return;
+    const alert = await PriceTrackerService.getAlertForProduct(productId);
+    if (alert) {
+      setCurrentAlert(alert);
+      setPriceAlertActive(true);
+      setTargetPrice(alert.targetPrice.toString());
+    } else {
+      setCurrentAlert(null);
+      setPriceAlertActive(false);
+      setTargetPrice('');
+    }
+  };
+
+  const handleSaveAlert = async () => {
+    if (!product || !targetPrice) return;
+    const target = parseFloat(targetPrice.replace(',', '.'));
+    if (isNaN(target) || target <= 0) return;
+    
+    try {
+      const alert = await PriceTrackerService.addAlert(product, target);
+      setCurrentAlert(alert);
+      setPriceAlertActive(true);
+      setShowAlertModal(false);
+    } catch (error) {
+      console.error('Error saving alert:', error);
+    }
+  };
+
+  const handleDeleteAlert = async () => {
+    if (!productId) return;
+    try {
+      await PriceTrackerService.deleteAlertForProduct(productId);
+      setCurrentAlert(null);
+      setPriceAlertActive(false);
+      setTargetPrice('');
+      setShowAlertModal(false);
+    } catch (error) {
+      console.error('Error deleting alert:', error);
+    }
+  };
+
+  const openAlertModal = () => {
+    if (priceAlertActive && currentAlert) {
+      setTargetPrice(currentAlert.targetPrice.toString());
+    } else if (product) {
+      setTargetPrice(Math.floor(product.price * 0.8).toString()); // Default 20% less
+    }
+    setShowAlertModal(true);
+  };
+
+  if (!productId) {
+    return (
+      <View style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
+        <Text style={{ color: theme.text }}>Keine Produkt-ID gefunden</Text>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Text style={{ color: theme.primary, marginTop: 10 }}>Zurück</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   const handleOpenShop = async () => {
     if (product?.affiliateUrl) {
@@ -65,13 +145,16 @@ export default function ProductDetailScreen() {
     }
   };
 
+  const handleAmazonSearch = async () => {
+    if (!product) return;
+    const searchUrl = `https://www.amazon.de/s?k=${encodeURIComponent(product.name)}&tag=max0c62-21`;
+    await Linking.openURL(searchUrl);
+  };
+
   const handleShare = async () => {
     if (product) {
       try {
-        await Share.share({
-          message: `Schau dir ${product.name} bei ${product.shop} an! ${product.price} ${product.currency}`,
-          title: product.name,
-        });
+        await shareProduct(product);
       } catch (error) {
         console.log('Share error:', error);
       }
@@ -84,39 +167,49 @@ export default function ProductDetailScreen() {
 
   if (!product) {
     return (
-      <View style={styles.loadingContainer}>
-        <Text>Produkt wird geladen...</Text>
+      <View style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
+        <Text style={{ color: theme.text }}>Produkt wird geladen...</Text>
       </View>
     );
   }
 
-  const shopColors: Record<string, string> = {
-    'IKEA': '#FFDA1C',
-    'home24': '#FF6B6B',
-    'Otto': '#FF6600',
-    'XXXLutz': '#FF0000',
-    'Westwing': '#2D2D2D',
-    'Mömax': '#00A651',
-    'Etsy': '#F56400',
-  };
-
-  const shopColor = shopColors[product.shop] || '#666';
+  const shopColor = theme.shopColors[product.shop] || '#666';
 
   return (
-    <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} translucent backgroundColor="transparent" />
+      
+      {/* Animated Header */}
+      <Animated.View style={[styles.header, { opacity: headerOpacity, backgroundColor: theme.card }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Text style={styles.backButtonText}>←</Text>
+          <Text style={[styles.backButtonTextSolid, { color: theme.text }]}>←</Text>
         </TouchableOpacity>
+        <Text style={[styles.headerTitle, { color: theme.text }]} numberOfLines={1}>{product?.name}</Text>
         <TouchableOpacity onPress={handleShare} style={styles.shareButton}>
-          <Text style={styles.shareButtonText}>↗</Text>
+          <Text style={[styles.shareButtonTextSolid, { color: theme.text }]}>↗</Text>
+        </TouchableOpacity>
+      </Animated.View>
+
+      {/* Static Header (visible at top) */}
+      <View style={[styles.headerStatic, { backgroundColor: 'transparent' }]}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={[styles.backButton, { backgroundColor: isDark ? 'rgba(30,30,30,0.9)' : 'rgba(255,255,255,0.9)' }]}>
+          <Text style={[styles.backButtonText, { color: theme.text }]}>←</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={handleShare} style={[styles.shareButton, { backgroundColor: isDark ? 'rgba(30,30,30,0.9)' : 'rgba(255,255,255,0.9)' }]}>
+          <Text style={[styles.shareButtonText, { color: theme.text }]}>↗</Text>
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <Animated.ScrollView 
+        style={[styles.scrollView, { backgroundColor: theme.background }]} 
+        showsVerticalScrollIndicator={false}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: true }
+        )}
+        scrollEventThrottle={16}>
         {/* Hero Image */}
-        <View style={styles.heroContainer}>
+        <View style={[styles.heroContainer, { backgroundColor: theme.surface }]}>
           {Platform.OS === 'web' ? (
             <img
               src={product.imageUrl}
@@ -131,7 +224,7 @@ export default function ProductDetailScreen() {
         </View>
 
         {/* Product Info */}
-        <View style={styles.infoContainer}>
+        <View style={[styles.infoContainer, { backgroundColor: theme.background }]}>
           {/* Shop Badge */}
           <View style={[styles.shopBadge, { backgroundColor: shopColor }]}>
             <Text style={[styles.shopBadgeText, { 
@@ -142,30 +235,30 @@ export default function ProductDetailScreen() {
           </View>
 
           {/* Product Name */}
-          <Text style={styles.productName}>{product.name}</Text>
+          <Text style={[styles.productName, { color: theme.text }]}>{product.name}</Text>
 
           {/* Style & Category */}
           <View style={styles.tagsRow}>
-            <View style={styles.tag}>
-              <Text style={styles.tagText}>{product.style}</Text>
+            <View style={[styles.tag, { backgroundColor: theme.surface }]}>
+              <Text style={[styles.tagText, { color: theme.textSecondary }]}>{product.style}</Text>
             </View>
-            <View style={styles.tag}>
-              <Text style={styles.tagText}>{product.category}</Text>
+            <View style={[styles.tag, { backgroundColor: theme.surface }]}>
+              <Text style={[styles.tagText, { color: theme.textSecondary }]}>{product.category}</Text>
             </View>
           </View>
 
           {/* Price */}
           <View style={styles.priceContainer}>
-            <Text style={styles.price}>
+            <Text style={[styles.price, { color: theme.primary }]}>
               {product.price.toLocaleString('de-DE')} {product.currency}
             </Text>
-            <Text style={styles.priceSubtext}>inkl. MwSt.</Text>
+            <Text style={[styles.priceSubtext, { color: theme.textMuted }]}>inkl. MwSt.</Text>
           </View>
 
           {/* Description */}
           <View style={styles.descriptionSection}>
-            <Text style={styles.sectionTitle}>Beschreibung</Text>
-            <Text style={styles.description} numberOfLines={descriptionExpanded ? undefined : 3}>
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>Beschreibung</Text>
+            <Text style={[styles.description, { color: theme.textSecondary }]} numberOfLines={descriptionExpanded ? undefined : 3}>
               {product.description || `Hochwertiges ${product.name} im ${product.style} Stil. 
               Perfekt für dein Zuhause. Exklusiv bei ${product.shop} erhältlich.
               
@@ -174,7 +267,7 @@ export default function ProductDetailScreen() {
               • Schnelle Lieferung`}
             </Text>
             <TouchableOpacity onPress={() => setDescriptionExpanded(!descriptionExpanded)}>
-              <Text style={styles.expandText}>
+              <Text style={[styles.expandText, { color: theme.primary }]}>
                 {descriptionExpanded ? 'Weniger anzeigen' : 'Mehr anzeigen'}
               </Text>
             </TouchableOpacity>
@@ -183,7 +276,7 @@ export default function ProductDetailScreen() {
           {/* Similar Products */}
           {similarProducts.length > 0 && (
             <View style={styles.similarSection}>
-              <Text style={styles.sectionTitle}>Ähnliche Produkte</Text>
+              <Text style={[styles.sectionTitle, { color: theme.text }]}>Ähnliche Produkte</Text>
               <ScrollView 
                 horizontal 
                 showsHorizontalScrollIndicator={false}
@@ -192,10 +285,10 @@ export default function ProductDetailScreen() {
                 {similarProducts.map((item) => (
                   <TouchableOpacity
                     key={item.id}
-                    style={styles.similarCard}
+                    style={[styles.similarCard, { backgroundColor: theme.card }]}
                     onPress={() => handleSimilarPress(item.id)}
                   >
-                    <View style={styles.similarImage}>
+                    <View style={[styles.similarImage, { backgroundColor: theme.surface }]}>
                       {Platform.OS === 'web' ? (
                         <img
                           src={item.imageUrl}
@@ -206,8 +299,8 @@ export default function ProductDetailScreen() {
                         <Text style={styles.similarPlaceholder}>📷</Text>
                       )}
                     </View>
-                    <Text style={styles.similarName} numberOfLines={1}>{item.name}</Text>
-                    <Text style={styles.similarPrice}>
+                    <Text style={[styles.similarName, { color: theme.text }]} numberOfLines={1}>{item.name}</Text>
+                    <Text style={[styles.similarPrice, { color: theme.primary }]}>
                       {item.price} {item.currency}
                     </Text>
                   </TouchableOpacity>
@@ -219,34 +312,125 @@ export default function ProductDetailScreen() {
 
         {/* Bottom spacing for sticky button */}
         <View style={{ height: 100 }} />
-      </ScrollView>
+      </Animated.ScrollView>
 
       {/* Sticky Action Bar */}
-      <View style={styles.actionBar}>
+      <View style={[styles.actionBar, { backgroundColor: theme.card, borderTopColor: theme.border }]}>
         <TouchableOpacity 
           style={styles.actionButton}
           onPress={() => setIsFavorite(!isFavorite)}
         >
-          <Text style={[styles.actionIcon, isFavorite && styles.actionIconActive]}>
+          <Text style={[styles.actionIcon, isFavorite && { color: theme.error }]}>
             {isFavorite ? '❤️' : '♡'}
           </Text>
-          <Text style={styles.actionLabel}>Merken</Text>
+          <Text style={[styles.actionLabel, { color: theme.textSecondary }]}>Merken</Text>
         </TouchableOpacity>
 
         <TouchableOpacity 
-          style={[styles.actionButton, priceAlert && styles.actionButtonActive]}
-          onPress={() => setPriceAlert(!priceAlert)}
+          style={[styles.actionButton, priceAlertActive && { opacity: 1 }]}
+          onPress={openAlertModal}
         >
-          <Text style={styles.actionIcon}>{priceAlert ? '🔔' : '🔕'}</Text>
-          <Text style={[styles.actionLabel, priceAlert && styles.actionLabelActive]}>
-            {priceAlert ? 'Alarm an' : 'Preisalarm'}
+          <Text style={styles.actionIcon}>{priceAlertActive ? '🔔' : '🔕'}</Text>
+          <Text style={[styles.actionLabel, { color: priceAlertActive ? theme.primary : theme.textSecondary }]}>
+            {priceAlertActive ? 'Alarm an' : 'Preisalarm'}
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.ctaButton} onPress={handleOpenShop}>
+        <TouchableOpacity style={[styles.ctaButton, { backgroundColor: theme.primary }]} onPress={handleOpenShop}>
           <Text style={styles.ctaButtonText}>🛒 Zum Shop</Text>
         </TouchableOpacity>
+
+        {product.shop === 'Amazon' && (
+          <TouchableOpacity style={[styles.amazonButton, { backgroundColor: '#FF9900' }]} onPress={handleAmazonSearch}>
+            <Text style={styles.amazonButtonText}>🔍 Auf Amazon suchen</Text>
+          </TouchableOpacity>
+        )}
       </View>
+
+      {/* Price Alert Modal */}
+      <Modal
+        visible={showAlertModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowAlertModal(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setShowAlertModal(false)}>
+          <KeyboardAvoidingView behavior="padding" style={styles.modalContainer}>
+            <Pressable style={[styles.modalContent, { backgroundColor: theme.card }]} onPress={() => {}}>
+              <View style={styles.modalHandle} />
+              
+              <Text style={[styles.modalTitle, { color: theme.text }]}>
+                {priceAlertActive ? 'Preis-Alarm bearbeiten' : 'Preis-Alarm setzen'}
+              </Text>
+              
+              {product && (
+                <View style={[styles.modalProductInfo, { backgroundColor: theme.surface }]}>
+                  <Text style={[styles.modalProductName, { color: theme.text }]} numberOfLines={2}>
+                    {product.name}
+                  </Text>
+                  <Text style={[styles.modalProductPrice, { color: theme.primary }]}>
+                    Aktuell: {product.price} {product.currency}
+                  </Text>
+                </View>
+              )}
+
+              {priceAlertActive && currentAlert && (
+                <View style={[styles.alertInfoBox, { backgroundColor: theme.primary + '20', borderColor: theme.primary }]}>
+                  <Text style={[styles.alertInfoText, { color: theme.primary }]}>
+                    🔔 Alarm aktiv für {currentAlert.targetPrice}€
+                  </Text>
+                  {currentAlert.triggered && (
+                    <Text style={[styles.alertTriggeredText, { color: theme.error }]}>
+                      ⚠️ Zielpreis erreicht!
+                    </Text>
+                  )}
+                </View>
+              )}
+
+              <Text style={[styles.modalLabel, { color: theme.textSecondary }]}>
+                Wunschpreis (wird benachrichtigt wenn Preis sinkt)
+              </Text>
+              
+              <View style={styles.modalInputRow}>
+                <TextInput
+                  style={[styles.modalInput, { backgroundColor: theme.surface, borderColor: theme.border, color: theme.text }]}
+                  value={targetPrice}
+                  onChangeText={setTargetPrice}
+                  keyboardType="numeric"
+                  placeholder="0"
+                  placeholderTextColor={theme.textMuted}
+                />
+                <Text style={[styles.modalInputSuffix, { color: theme.textSecondary }]}>€</Text>
+              </View>
+
+              <View style={styles.modalButtons}>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.modalButtonSecondary, { borderColor: theme.border }]}
+                  onPress={() => setShowAlertModal(false)}
+                >
+                  <Text style={[styles.modalButtonText, { color: theme.text }]}>Abbrechen</Text>
+                </TouchableOpacity>
+                
+                {priceAlertActive ? (
+                  <TouchableOpacity
+                    style={[styles.modalButton, styles.modalButtonDanger, { backgroundColor: theme.error }]}
+                    onPress={handleDeleteAlert}
+                  >
+                    <Text style={[styles.modalButtonText, { color: '#FFF' }]}>Löschen</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity
+                    style={[styles.modalButton, styles.modalButtonPrimary, { backgroundColor: theme.primary }]}
+                    onPress={handleSaveAlert}
+                  >
+                    <Text style={[styles.modalButtonText, { color: '#FFF' }]}>Alarm setzen</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </Pressable>
+          </KeyboardAvoidingView>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -254,7 +438,6 @@ export default function ProductDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFF',
   },
   loadingContainer: {
     flex: 1,
@@ -274,11 +457,36 @@ const styles = StyleSheet.create({
     right: 0,
     zIndex: 10,
   },
+  headerStatic: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 48,
+    paddingBottom: 12,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 5,
+  },
+  headerTitle: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginHorizontal: 8,
+  },
+  backButtonTextSolid: {
+    fontSize: 24,
+  },
+  shareButtonTextSolid: {
+    fontSize: 24,
+  },
   backButton: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.9)',
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
@@ -289,13 +497,11 @@ const styles = StyleSheet.create({
   },
   backButtonText: {
     fontSize: 24,
-    color: '#333',
   },
   shareButton: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.9)',
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
@@ -306,7 +512,6 @@ const styles = StyleSheet.create({
   },
   shareButtonText: {
     fontSize: 20,
-    color: '#333',
   },
   scrollView: {
     flex: 1,
@@ -314,7 +519,6 @@ const styles = StyleSheet.create({
   heroContainer: {
     width: width,
     height: width * 0.75,
-    backgroundColor: '#F5F5F5',
   },
   heroImagePlaceholder: {
     width: '100%',
@@ -343,7 +547,6 @@ const styles = StyleSheet.create({
   productName: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#1A1A1A',
     marginBottom: 12,
   },
   tagsRow: {
@@ -352,14 +555,12 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   tag: {
-    backgroundColor: '#F0F0F0',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 4,
   },
   tagText: {
     fontSize: 12,
-    color: '#666',
   },
   priceContainer: {
     marginBottom: 24,
@@ -367,11 +568,9 @@ const styles = StyleSheet.create({
   price: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#1A5F5A',
   },
   priceSubtext: {
     fontSize: 12,
-    color: '#999',
     marginTop: 2,
   },
   descriptionSection: {
@@ -380,17 +579,14 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1A1A1A',
     marginBottom: 12,
   },
   description: {
     fontSize: 15,
-    color: '#666',
     lineHeight: 22,
   },
   expandText: {
     fontSize: 14,
-    color: '#1A5F5A',
     marginTop: 8,
     fontWeight: '500',
   },
@@ -403,14 +599,12 @@ const styles = StyleSheet.create({
   similarCard: {
     width: 130,
     marginRight: 12,
-    backgroundColor: '#F8F8F8',
     borderRadius: 12,
     overflow: 'hidden',
   },
   similarImage: {
     width: '100%',
     height: 100,
-    backgroundColor: '#EEE',
   },
   similarPlaceholder: {
     fontSize: 32,
@@ -420,14 +614,12 @@ const styles = StyleSheet.create({
   similarName: {
     fontSize: 12,
     fontWeight: '500',
-    color: '#333',
     paddingHorizontal: 8,
     paddingTop: 8,
   },
   similarPrice: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#1A5F5A',
     paddingHorizontal: 8,
     paddingBottom: 8,
   },
@@ -441,9 +633,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     paddingBottom: 28,
-    backgroundColor: '#FFF',
     borderTopWidth: 1,
-    borderTopColor: '#EEE',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.1,
@@ -467,15 +657,12 @@ const styles = StyleSheet.create({
   },
   actionLabel: {
     fontSize: 11,
-    color: '#666',
   },
   actionLabelActive: {
-    color: '#1A5F5A',
     fontWeight: '500',
   },
   ctaButton: {
     flex: 1,
-    backgroundColor: '#1A5F5A',
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: 'center',
@@ -485,5 +672,122 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  amazonButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+  amazonButtonText: {
+    color: '#FFF',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContainer: {
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    paddingBottom: 40,
+  },
+  modalHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#888',
+    alignSelf: 'center',
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  modalProductInfo: {
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  modalProductName: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  modalProductPrice: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  alertInfoBox: {
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginBottom: 16,
+    alignItems: 'center',
+  },
+  alertInfoText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  alertTriggeredText: {
+    fontSize: 12,
+    fontWeight: '500',
+    marginTop: 4,
+  },
+  modalLabel: {
+    fontSize: 14,
+    marginBottom: 8,
+  },
+  modalInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  modalInput: {
+    flex: 1,
+    height: 52,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    fontSize: 20,
+    fontWeight: '600',
+    borderWidth: 1,
+  },
+  modalInputSuffix: {
+    fontSize: 20,
+    marginLeft: 12,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  modalButtonPrimary: {
+    // backgroundColor set dynamically
+  },
+  modalButtonSecondary: {
+    borderWidth: 1,
+  },
+  modalButtonDanger: {
+    // backgroundColor set dynamically
+  },
+  modalButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

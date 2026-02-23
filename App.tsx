@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -18,6 +18,10 @@ import OnboardingScreen from './src/screens/OnboardingScreen';
 import DiscoverScreen from './src/screens/DiscoverScreen';
 import StyleQuizScreen from './src/screens/StyleQuizScreen';
 import ProductDetailScreen from './src/screens/ProductDetailScreen';
+import SearchHistoryScreen from './src/screens/SearchHistoryScreen';
+import PriceAlertsScreen from './src/screens/PriceAlertsScreen';
+
+import { ThemeProvider, useTheme, lightTheme, darkTheme } from './src/context/ThemeContext';
 
 export type RootStackParamList = {
   MainTabs: undefined;
@@ -31,6 +35,8 @@ export type RootStackParamList = {
   };
   StyleQuiz: undefined;
   ProductDetail: { productId: string };
+  SearchHistory: undefined;
+  PriceAlerts: undefined;
 };
 
 export type TabParamList = {
@@ -46,15 +52,17 @@ const Tab = createBottomTabNavigator<TabParamList>();
 const ONBOARDING_KEY = '@furniq_onboarding_seen';
 
 function TabNavigator() {
+  const { theme } = useTheme();
+
   return (
     <Tab.Navigator
       screenOptions={{
-        tabBarActiveTintColor: '#1A5F5A',
-        tabBarInactiveTintColor: '#999',
+        tabBarActiveTintColor: theme.tabBarActive,
+        tabBarInactiveTintColor: theme.tabBarInactive,
         tabBarStyle: {
-          backgroundColor: '#FFF',
+          backgroundColor: theme.tabBarBackground,
           borderTopWidth: 1,
-          borderTopColor: '#E0E0E0',
+          borderTopColor: theme.tabBarBorder,
           paddingBottom: 4,
           paddingTop: 4,
           height: 60,
@@ -64,9 +72,9 @@ function TabNavigator() {
           fontWeight: '500',
         },
         headerStyle: {
-          backgroundColor: '#1A5F5A',
+          backgroundColor: theme.headerBackground,
         },
-        headerTintColor: '#FFF',
+        headerTintColor: theme.headerText,
         headerTitleStyle: {
           fontWeight: 'bold',
         },
@@ -109,13 +117,106 @@ function TabNavigator() {
   );
 }
 
-export default function App() {
+function AppNavigator() {
+  const { theme, isDark } = useTheme();
+
+  const navigationTheme = {
+    ...(isDark ? DarkTheme : DefaultTheme),
+    colors: {
+      ...(isDark ? DarkTheme.colors : DefaultTheme.colors),
+      primary: theme.primary,
+      background: theme.background,
+      card: theme.card,
+      text: theme.text,
+      border: theme.border,
+    },
+  };
+
+  return (
+    <NavigationContainer theme={navigationTheme}>
+      <Stack.Navigator
+        screenOptions={{
+          headerStyle: {
+            backgroundColor: theme.headerBackground,
+          },
+          headerTintColor: theme.headerText,
+          headerTitleStyle: {
+            fontWeight: 'bold',
+          },
+          contentStyle: {
+            backgroundColor: theme.background,
+          },
+        }}
+      >
+        <Stack.Screen
+          name="MainTabs"
+          component={TabNavigator}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="ProductDetail"
+          component={ProductDetailScreen}
+          options={{
+            headerShown: false,
+            presentation: 'card',
+          }}
+        />
+        <Stack.Screen
+          name="Results"
+          component={ResultsScreen}
+          options={{
+            title: 'Ähnliche Produkte',
+            headerBackTitle: 'Zurück',
+          }}
+        />
+        <Stack.Screen
+          name="Auth"
+          component={AuthScreen}
+          options={{
+            title: 'Anmelden',
+            headerBackTitle: 'Zurück',
+            presentation: 'modal',
+          }}
+        />
+        <Stack.Screen
+          name="StyleQuiz"
+          component={StyleQuizScreen}
+          options={{
+            title: 'Style Quiz',
+            headerBackTitle: 'Zurück',
+            presentation: 'modal',
+          }}
+        />
+        <Stack.Screen
+          name="SearchHistory"
+          component={SearchHistoryScreen}
+          options={{
+            title: 'Suchverlauf',
+            headerBackTitle: 'Zurück',
+          }}
+        />
+        <Stack.Screen
+          name="PriceAlerts"
+          component={PriceAlertsScreen}
+          options={{
+            title: 'Preis-Alarme',
+            headerBackTitle: 'Zurück',
+          }}
+        />
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
+}
+
+function AppContent() {
+  const { isDark } = useTheme();
   const [showOnboarding, setShowOnboarding] = useState<boolean | null>(null);
 
   useEffect(() => {
-    // Check if onboarding was already shown
+    // Check if onboarding was already seen
     AsyncStorage.getItem(ONBOARDING_KEY).then((val) => {
-      setShowOnboarding(val === 'true');
+      // val === 'true' means onboarding was already completed → don't show
+      setShowOnboarding(val !== 'true');
     });
   }, []);
 
@@ -132,61 +233,19 @@ export default function App() {
   }
 
   return (
+    <>
+      <AppNavigator />
+      <StatusBar style={isDark ? 'light' : 'dark'} />
+    </>
+  );
+}
+
+export default function App() {
+  return (
     <SafeAreaProvider>
-      <NavigationContainer>
-        <Stack.Navigator
-          screenOptions={{
-            headerStyle: {
-              backgroundColor: '#1A5F5A',
-            },
-            headerTintColor: '#FFF',
-            headerTitleStyle: {
-              fontWeight: 'bold',
-            },
-          }}
-        >
-          <Stack.Screen
-            name="ProductDetail"
-            component={ProductDetailScreen}
-            options={{
-              headerShown: false,
-              presentation: 'card',
-            }}
-          />
-          <Stack.Screen
-            name="MainTabs"
-            component={TabNavigator}
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen
-            name="Results"
-            component={ResultsScreen}
-            options={{
-              title: 'Ähnliche Produkte',
-              headerBackTitle: 'Zurück',
-            }}
-          />
-          <Stack.Screen
-            name="Auth"
-            component={AuthScreen}
-            options={{
-              title: 'Anmelden',
-              headerBackTitle: 'Zurück',
-              presentation: 'modal',
-            }}
-          />
-          <Stack.Screen
-            name="StyleQuiz"
-            component={StyleQuizScreen}
-            options={{
-              title: 'Style Quiz',
-              headerBackTitle: 'Zurück',
-              presentation: 'modal',
-            }}
-          />
-        </Stack.Navigator>
-      </NavigationContainer>
-      <StatusBar style="auto" />
+      <ThemeProvider>
+        <AppContent />
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }

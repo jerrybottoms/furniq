@@ -3,7 +3,7 @@
 import { FurnitureItem, SearchResult, AnalysisResult } from '../types';
 import { getCountryConfig, Country } from './supabase';
 
-const AMAZON_TAG = process.env.EXPO_PUBLIC_AMAZON_ASSOCIATE_TAG || 'furniturefinder';
+const AMAZON_TAG = process.env.EXPO_PUBLIC_AMAZON_ASSOCIATE_TAG || 'max0c62-21';
 const AWIN_ID = process.env.EXPO_PUBLIC_AWIN_ID || 'furniturefinder';
 
 // AWIN Shop Konfiguration (Deutschland)

@@ -100,6 +100,19 @@ export async function getLocalHistory(): Promise<HistoryItem[]> {
 }
 
 /**
+ * Delete single entry from history
+ */
+export async function deleteEntry(id: string): Promise<void> {
+  try {
+    const existing = await getLocalHistory();
+    const filtered = existing.filter(item => item.id !== id);
+    await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(filtered));
+  } catch (error) {
+    console.error('Error deleting history entry:', error);
+  }
+}
+
+/**
  * Clear all history (local + Supabase)
  */
 export async function clearHistory(): Promise<void> {

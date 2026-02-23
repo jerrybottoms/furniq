@@ -10,7 +10,6 @@ import {
   Alert,
   ScrollView,
   FlatList,
-  Modal,
 } from 'react-native';
 import { AnalysisResult } from '../types';
 import { ImageAnalysisService } from '../services/imageAnalysis';
@@ -18,6 +17,8 @@ import { ProductSearchService } from '../services/productSearch';
 import { usePermissions } from '../hooks/usePermissions';
 import { ImageUtils, ProcessedImage } from '../utils/imageUtils';
 import { addToHistory, getHistory, formatRelativeTime, HistoryItem } from '../services/history';
+import { getBudget } from '../services/budget';
+import { useTheme } from '../context/ThemeContext';
 
 interface HomeScreenProps {
   navigation: any;
@@ -29,22 +30,32 @@ interface SelectedImage {
 }
 
 export default function HomeScreen({ navigation }: HomeScreenProps) {
+  const { theme } = useTheme();
   const [selectedImages, setSelectedImages] = useState<SelectedImage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [statusText, setStatusText] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [budgetMax, setBudgetMax] = useState<number | null>(null);
   
   const { permissions, requestCameraPermission, requestMediaLibraryPermission } = usePermissions();
 
-  // Load history on mount
+  // Load history and budget on mount
   useEffect(() => {
     loadHistory();
+    loadBudget();
   }, []);
 
   const loadHistory = async () => {
     const items = await getHistory();
-    setHistory(items.slice(0, 5)); // Show max 5
+    setHistory(items.slice(0, 3)); // Show max 3
+  };
+
+  const loadBudget = async () => {
+    const budget = await getBudget();
+    if (budget.maxBudget !== null && budget.maxBudget > 0) {
+      setBudgetMax(budget.maxBudget);
+    }
   };
 
   // Pick image from camera with crop
@@ -188,7 +199,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
     <View style={styles.thumbnailContainer}>
       <Image source={{ uri: item.uri }} style={styles.thumbnail} />
       <TouchableOpacity
-        style={styles.removeButton}
+        style={[styles.removeButton, { backgroundColor: theme.error }]}
         onPress={() => removeImage(item.id)}
       >
         <Text style={styles.removeButtonText}>×</Text>
@@ -197,66 +208,63 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   );
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>🪑 Furniq</Text>
-      <Text style={styles.subtitle}>
+    <ScrollView style={[styles.container, { backgroundColor: theme.surface }]} contentContainerStyle={styles.content}>
+      <Text style={[styles.title, { color: theme.text }]}>🪑 Furniq</Text>
+      <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
         Find similar furniture styles and shop the look
       </Text>
 
-      {/* Quick Actions */}
-      <View style={styles.quickActions}>
+      {/* Budget Indicator */}
+      {budgetMax !== null && budgetMax > 0 && (
         <TouchableOpacity
-          style={styles.quickActionButton}
-          onPress={() => navigation.navigate('Favorites')}
-        >
-          <Text style={styles.quickActionIcon}>❤️</Text>
-          <Text style={styles.quickActionText}>Favoriten</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.quickActionButton}
-          onPress={() => navigation.navigate('Auth', { mode: 'signin' })}
-        >
-          <Text style={styles.quickActionIcon}>👤</Text>
-          <Text style={styles.quickActionText}>Anmelden</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.quickActionButton}
+          style={[styles.budgetIndicator, { backgroundColor: theme.primary }]}
           onPress={() => navigation.navigate('Settings')}
         >
-          <Text style={styles.quickActionIcon}>⚙️</Text>
-          <Text style={styles.quickActionText}>Einstellungen</Text>
+          <Text style={styles.budgetIndicatorIcon}>💰</Text>
+          <Text style={styles.budgetIndicatorText}>
+            Budget: max. {budgetMax}€ aktiv
+          </Text>
         </TouchableOpacity>
-      </View>
+      )}
 
       {/* Search History */}
       {history.length > 0 && (
         <View style={styles.historySection}>
-          <Text style={styles.historyTitle}>🕐 Letzte Suchen</Text>
-          {history.map((item) => (
+          <View style={styles.historySectionHeader}>
+            <Text style={[styles.historyTitle, { color: theme.text }]}>🕐 Letzte Suchen</Text>
+            <TouchableOpacity
+              onPress={() => navigation.navigate('SearchHistory')}
+            >
+              <Text style={[styles.showAllText, { color: theme.primary }]}>
+                Alle anzeigen →
+              </Text>
+            </TouchableOpacity>
+          </View>
+          {history.slice(0, 3).map((item) => (
             <TouchableOpacity
               key={item.id}
-              style={styles.historyItem}
+              style={[styles.historyItem, { backgroundColor: theme.card, borderColor: theme.border }]}
               onPress={() => {
                 // For now, just show alert - could navigate to saved results later
                 Alert.alert('Erinnerung', 'Diese Funktion kommt bald!');
               }}
             >
               <View style={styles.historyItemContent}>
-                <Text style={styles.historyItemText}>
+                <Text style={[styles.historyItemText, { color: theme.text }]}>
                   📷 {item.query || `${item.category} • ${item.style}`}
                 </Text>
-                <Text style={styles.historyItemMeta}>
+                <Text style={[styles.historyItemMeta, { color: theme.textSecondary }]}>
                   {item.productCount} Produkte • {formatRelativeTime(item.timestamp)}
                 </Text>
               </View>
-              <Text style={styles.historyArrow}>→</Text>
+              <Text style={[styles.historyArrow, { color: theme.textSecondary }]}>→</Text>
             </TouchableOpacity>
           ))}
         </View>
       )}
 
       {/* Selected Images Grid */}
-      <View style={styles.imageContainer}>
+      <View style={[styles.imageContainer, { backgroundColor: theme.border }]}>
         {selectedImages.length > 0 ? (
           <FlatList
             data={selectedImages}
@@ -268,7 +276,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
           />
         ) : (
           <View style={styles.placeholder}>
-            <Text style={styles.placeholderText}>
+            <Text style={[styles.placeholderText, { color: theme.textMuted }]}>
               📷 Take a photo or select an image
             </Text>
           </View>
@@ -278,23 +286,23 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
       {/* Status */}
       {statusText && (
         <View style={styles.statusContainer}>
-          <ActivityIndicator size="small" color="#1A5F5A" />
-          <Text style={styles.statusText}>{statusText}</Text>
+          <ActivityIndicator size="small" color={theme.primary} />
+          <Text style={[styles.statusText, { color: theme.textSecondary }]}>{statusText}</Text>
         </View>
       )}
 
       {/* Loading Overlay */}
       {isProcessing && (
         <View style={styles.processingOverlay}>
-          <ActivityIndicator size="large" color="#1A5F5A" />
-          <Text style={styles.processingText}>Bild wird geladen...</Text>
+          <ActivityIndicator size="large" color={theme.primary} />
+          <Text style={[styles.processingText, { color: theme.textSecondary }]}>Bild wird geladen...</Text>
         </View>
       )}
 
       {/* Action Buttons */}
       <View style={styles.buttonContainer}>
         <TouchableOpacity
-          style={[styles.button, styles.cameraButton]}
+          style={[styles.button, styles.cameraButton, { backgroundColor: theme.primary }]}
           onPress={pickFromCamera}
           disabled={isLoading || isProcessing}
         >
@@ -302,7 +310,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.button, styles.galleryButton]}
+          style={[styles.button, styles.galleryButton, { backgroundColor: '#6B7280' }]}
           onPress={pickFromGallery}
           disabled={isLoading || isProcessing}
         >
@@ -312,7 +320,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
 
       {/* Multi-select Button (for future use) */}
       <TouchableOpacity
-        style={[styles.button, styles.multiButton]}
+        style={[styles.button, styles.multiButton, { backgroundColor: '#8B5CF6' }]}
         onPress={pickMultipleFromGallery}
         disabled={isLoading || isProcessing}
       >
@@ -321,7 +329,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
 
       {/* Selected Images Count */}
       {selectedImages.length > 0 && (
-        <Text style={styles.imageCount}>
+        <Text style={[styles.imageCount, { color: theme.textSecondary }]}>
           {selectedImages.length} Bild(er) ausgewählt
         </Text>
       )}
@@ -329,7 +337,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
       {/* Analyze Button */}
       {selectedImages.length > 0 && (
         <TouchableOpacity
-          style={[styles.button, styles.analyzeButton]}
+          style={[styles.button, styles.analyzeButton, { backgroundColor: theme.success }]}
           onPress={analyzeImages}
           disabled={isLoading}
         >
@@ -347,7 +355,6 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
   },
   content: {
     padding: 20,
@@ -356,38 +363,30 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#333',
     marginTop: 40,
   },
   subtitle: {
     fontSize: 16,
-    color: '#666',
     marginTop: 8,
     marginBottom: 24,
     textAlign: 'center',
   },
-  quickActions: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 12,
-    marginBottom: 20,
-  },
-  quickActionButton: {
+  budgetIndicator: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F5F5F5',
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 20,
-    gap: 6,
+    marginBottom: 16,
+    gap: 8,
   },
-  quickActionIcon: {
+  budgetIndicatorIcon: {
     fontSize: 16,
   },
-  quickActionText: {
+  budgetIndicatorText: {
+    color: '#FFF',
     fontSize: 14,
-    color: '#333',
-    fontWeight: '500',
+    fontWeight: '600',
   },
   imageContainer: {
     width: '100%',
@@ -396,7 +395,6 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     overflow: 'hidden',
     marginBottom: 20,
-    backgroundColor: '#E0E0E0',
   },
   imageList: {
     padding: 10,
@@ -418,7 +416,6 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#FF4444',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -436,7 +433,6 @@ const styles = StyleSheet.create({
   },
   placeholderText: {
     fontSize: 16,
-    color: '#999',
     textAlign: 'center',
     padding: 20,
   },
@@ -447,7 +443,6 @@ const styles = StyleSheet.create({
   },
   statusText: {
     marginLeft: 8,
-    color: '#666',
     fontSize: 14,
   },
   processingOverlay: {
@@ -456,7 +451,6 @@ const styles = StyleSheet.create({
   },
   processingText: {
     marginTop: 10,
-    color: '#666',
   },
   buttonContainer: {
     flexDirection: 'row',
@@ -471,20 +465,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     minWidth: 140,
   },
-  cameraButton: {
-    backgroundColor: '#1A5F5A',
-  },
-  galleryButton: {
-    backgroundColor: '#6B7280',
-  },
+  cameraButton: {},
+  galleryButton: {},
   multiButton: {
-    backgroundColor: '#8B5CF6',
     width: '100%',
     maxWidth: 292,
     marginBottom: 16,
   },
   analyzeButton: {
-    backgroundColor: '#10B981',
     width: '100%',
     maxWidth: 400,
   },
@@ -495,7 +483,6 @@ const styles = StyleSheet.create({
   },
   imageCount: {
     fontSize: 14,
-    color: '#666',
     marginBottom: 12,
   },
 
@@ -504,37 +491,40 @@ const styles = StyleSheet.create({
     marginTop: 16,
     marginBottom: 8,
   },
+  historySectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
   historyTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
-    marginBottom: 10,
+  },
+  showAllText: {
+    fontSize: 14,
+    fontWeight: '500',
   },
   historyItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF',
     padding: 12,
     borderRadius: 10,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#E8E8E8',
   },
   historyItemContent: {
     flex: 1,
   },
   historyItemText: {
     fontSize: 14,
-    color: '#333',
     fontWeight: '500',
   },
   historyItemMeta: {
     fontSize: 12,
-    color: '#888',
     marginTop: 2,
   },
   historyArrow: {
     fontSize: 16,
-    color: '#999',
   },
 });

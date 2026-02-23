@@ -1,8 +1,8 @@
 // Quiz Option Component - Single option for Style Quiz
 import React, { useState } from 'react';
 import { TouchableOpacity, Text, StyleSheet, View, Platform } from 'react-native';
+import { useTheme } from '../context/ThemeContext';
 
-// Fixed dimensions for web compatibility
 const OPTION_WIDTH = 160;
 const IMAGE_HEIGHT = 100;
 
@@ -14,18 +14,21 @@ interface QuizOptionProps {
 }
 
 export default function QuizOption({ imageUrl, label, isSelected, onPress }: QuizOptionProps) {
+  const { theme } = useTheme();
   const [imageError, setImageError] = useState(false);
 
-  // For web, use img tag directly
   if (Platform.OS === 'web') {
     return (
       <TouchableOpacity
-        style={[styles.container, isSelected && styles.selected]}
+        style={[
+          styles.container,
+          { backgroundColor: theme.surface, borderColor: isSelected ? theme.primary : 'transparent' },
+        ]}
         onPress={onPress}
         activeOpacity={0.7}
       >
         {imageError ? (
-          <View style={[styles.imagePlaceholder, styles.image]}>
+          <View style={[styles.imagePlaceholder, styles.image, { backgroundColor: theme.border }]}>
             <Text style={styles.placeholderText}>📷</Text>
           </View>
         ) : (
@@ -36,13 +39,13 @@ export default function QuizOption({ imageUrl, label, isSelected, onPress }: Qui
             onError={() => setImageError(true)}
           />
         )}
-        <View style={[styles.labelContainer, isSelected && styles.labelSelected]}>
-          <Text style={[styles.label, isSelected && styles.labelTextSelected]} numberOfLines={2}>
+        <View style={[styles.labelContainer, isSelected && { backgroundColor: theme.primary }]}>
+          <Text style={[styles.label, { color: isSelected ? '#FFF' : theme.text }]} numberOfLines={2}>
             {label}
           </Text>
         </View>
         {isSelected && (
-          <View style={styles.checkmark}>
+          <View style={[styles.checkmark, { backgroundColor: theme.primary }]}>
             <Text style={styles.checkmarkText}>✓</Text>
           </View>
         )}
@@ -50,26 +53,24 @@ export default function QuizOption({ imageUrl, label, isSelected, onPress }: Qui
     );
   }
 
-  // For native, use Image component
   const { Image } = require('react-native');
   return (
     <TouchableOpacity
-      style={[styles.container, isSelected && styles.selected]}
+      style={[
+        styles.container,
+        { backgroundColor: theme.surface, borderColor: isSelected ? theme.primary : 'transparent' },
+      ]}
       onPress={onPress}
       activeOpacity={0.7}
     >
-      <Image
-        source={{ uri: imageUrl }}
-        style={styles.image}
-        resizeMode="cover"
-      />
-      <View style={[styles.labelContainer, isSelected && styles.labelSelected]}>
-        <Text style={[styles.label, isSelected && styles.labelTextSelected]} numberOfLines={2}>
+      <Image source={{ uri: imageUrl }} style={styles.image} resizeMode="cover" />
+      <View style={[styles.labelContainer, isSelected && { backgroundColor: theme.primary }]}>
+        <Text style={[styles.label, { color: isSelected ? '#FFF' : theme.text }]} numberOfLines={2}>
           {label}
         </Text>
       </View>
       {isSelected && (
-        <View style={styles.checkmark}>
+        <View style={[styles.checkmark, { backgroundColor: theme.primary }]}>
           <Text style={styles.checkmarkText}>✓</Text>
         </View>
       )}
@@ -83,12 +84,7 @@ const styles = StyleSheet.create({
     margin: 6,
     borderRadius: 12,
     overflow: 'hidden',
-    backgroundColor: '#F5F5F5',
     borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  selected: {
-    borderColor: '#1A5F5A',
   },
   image: {
     width: '100%',
@@ -96,29 +92,12 @@ const styles = StyleSheet.create({
     resizeMode: 'cover',
   },
   imagePlaceholder: {
-    backgroundColor: '#DDD',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  placeholderText: {
-    fontSize: 32,
-  },
-  labelContainer: {
-    padding: 10,
-    alignItems: 'center',
-  },
-  labelSelected: {
-    backgroundColor: '#1A5F5A',
-  },
-  label: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#333',
-    textAlign: 'center',
-  },
-  labelTextSelected: {
-    color: '#FFF',
-  },
+  placeholderText: { fontSize: 32 },
+  labelContainer: { padding: 10, alignItems: 'center' },
+  label: { fontSize: 13, fontWeight: '600', textAlign: 'center' },
   checkmark: {
     position: 'absolute',
     top: 8,
@@ -126,13 +105,8 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#1A5F5A',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  checkmarkText: {
-    color: '#FFF',
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
+  checkmarkText: { color: '#FFF', fontSize: 14, fontWeight: 'bold' },
 });

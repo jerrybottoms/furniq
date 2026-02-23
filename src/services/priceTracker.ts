@@ -3,6 +3,20 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FurnitureItem } from '../types';
 
 const TRACKED_PRODUCTS_KEY = '@furniq_tracked_products';
+const PRICE_ALERTS_KEY = '@furniq_price_alerts';
+
+export interface PriceAlert {
+  id: string;
+  productId: string;
+  productName: string;
+  productImageUrl: string;
+  shop: string;
+  currentPrice: number;
+  targetPrice: number;
+  affiliateUrl: string;
+  createdAt: number;
+  triggered: boolean;
+}
 
 export interface TrackedProduct {
   id: string;
@@ -105,6 +119,112 @@ export const PriceTrackerService = {
       await AsyncStorage.removeItem(TRACKED_PRODUCTS_KEY);
     } catch (error) {
       console.error('Error clearing tracked products:', error);
+    }
+  },
+
+  // ===== Price Alerts (with target price) =====
+
+  // Add a price alert for a product
+  async addAlert(product: FurnitureItem, targetPrice: number): Promise<PriceAlert> {
+    try {
+      const alerts = await this.getAlerts();
+      
+      // Check if alert already exists for this product
+      const existing = alerts.find(a => a.productId === product.id);
+      if (existing) {
+        // Update existing alert
+        existing.targetPrice = targetPrice;
+        existing.currentPrice = product.price;
+        existing.triggered = product.price <= targetPrice;
+        await AsyncStorage.setItem(PRICE_ALERTS_KEY, JSON.stringify(alerts));
+        return existing;
+      }
+      
+      const newAlert: PriceAlert = {
+        id: `alert_${Date.now()}_${product.id}`,
+        productId: product.id,
+        productName: product.name,
+        productImageUrl: product.imageUrl,
+        shop: product.shop,
+        currentPrice: product.price,
+        targetPrice: targetPrice,
+        affiliateUrl: product.affiliateUrl,
+        createdAt: Date.now(),
+        triggered: product.price <= targetPrice,
+      };
+      
+      alerts.push(newAlert);
+      await AsyncStorage.setItem(PRICE_ALERTS_KEY, JSON.stringify(alerts));
+      return newAlert;
+    } catch (error) {
+      console.error('Error adding price alert:', error);
+      throw error;
+    }
+  },
+
+  // Get all price alerts
+  async getAlerts(): Promise<PriceAlert[]> {
+    try {
+      const data = await AsyncStorage.getItem(PRICE_ALERTS_KEY);
+      return data ? JSON.parse(data) : [];
+    } catch (error) {
+      console.error('Error getting price alerts:', error);
+      return [];
+    }
+  },
+
+  // Get a specific alert for a product
+  async getAlertForProduct(productId: string): Promise<PriceAlert | null> {
+    const alerts = await this.getAlerts();
+    return alerts.find(a => a.productId === productId) || null;
+  },
+
+  // Delete a price alert
+  async deleteAlert(alertId: string): Promise<void> {
+    try {
+      const alerts = await this.getAlerts();
+      const filtered = alerts.filter(a => a.id !== alertId);
+      await AsyncStorage.setItem(PRICE_ALERTS_KEY, JSON.stringify(filtered));
+    } catch (error) {
+      console.error('Error deleting price alert:', error);
+    }
+  },
+
+  // Delete alert for a specific product
+  async deleteAlertForProduct(productId: string): Promise<void> {
+    try {
+      const alerts = await this.getAlerts();
+      const filtered = alerts.filter(a => a.productId !== productId);
+      await AsyncStorage.setItem(PRICE_ALERTS_KEY, JSON.stringify(filtered));
+    } catch (error) {
+      console.error('Error deleting price alert:', error);
+    }
+  },
+
+  // Check if product has an alert
+  async hasAlert(productId: string): Promise<boolean> {
+    const alerts = await this.getAlerts();
+    return alerts.some(a => a.productId === productId);
+  },
+
+  // Get triggered alerts (price dropped below target)
+  async getTriggeredAlerts(): Promise<PriceAlert[]> {
+    const alerts = await this.getAlerts();
+    return alerts.filter(a => a.triggered);
+  },
+
+  // Get count of triggered alerts
+  async getTriggeredAlertsCount(): Promise<number> {
+    const triggered = await this.getTriggeredAlerts();
+    return triggered.length;
+  },
+
+  // Clear all price alerts
+  async clearAllAlerts(): Promise<void> {
+    try {
+      await AsyncStorage.removeItem(PRICE_ALERTS_KEY);
+    } catch (error) {
+      console.error('Error clearing price alerts:', error);
     }
   },
 };

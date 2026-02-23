@@ -18,6 +18,8 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { STYLES, CATEGORIES, getFilteredCatalog, FurnitureStyle, FurnitureCategory, FurnitureItem } from '../data/catalog';
 import { StyleProfileService } from '../services/styleProfile';
 import { PriceTrackerService } from '../services/priceTracker';
+import { getBudget, isWithinBudget } from '../services/budget';
+import { useTheme } from '../context/ThemeContext';
 
 // Budget options
 const BUDGET_OPTIONS = [
@@ -35,6 +37,7 @@ const { width } = Dimensions.get('window');
 const COLUMN_WIDTH = (width - 48) / 2;
 
 export default function DiscoverScreen({ navigation }: any) {
+  const { theme, isDark } = useTheme();
   const [selectedStyle, setSelectedStyle] = useState<FurnitureStyle | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<FurnitureCategory | null>(null);
   const [recommendedStyles, setRecommendedStyles] = useState<string[]>([]);
@@ -42,6 +45,7 @@ export default function DiscoverScreen({ navigation }: any) {
   const [selectedBudget, setSelectedBudget] = useState<BudgetOption | null>(null);
   const [customPriceRange, setCustomPriceRange] = useState({ min: '', max: '' });
   const [trackedIds, setTrackedIds] = useState<Set<string>>(new Set());
+  const [globalBudgetMax, setGlobalBudgetMax] = useState<number | null>(null);
 
   // Load user preferences on mount
   useEffect(() => {
@@ -58,6 +62,12 @@ export default function DiscoverScreen({ navigation }: any) {
       // Load tracked products
       const tracked = await PriceTrackerService.getTrackedProducts();
       setTrackedIds(new Set(tracked.map(t => t.id)));
+      
+      // Load global budget from settings
+      const budget = await getBudget();
+      if (budget.maxBudget !== null && budget.maxBudget > 0) {
+        setGlobalBudgetMax(budget.maxBudget);
+      }
     };
     loadPreferences();
   }, []);
@@ -74,6 +84,9 @@ export default function DiscoverScreen({ navigation }: any) {
     } else if (customPriceRange.min || customPriceRange.max) {
       min = customPriceRange.min ? parseInt(customPriceRange.min, 10) : undefined;
       max = customPriceRange.max ? parseInt(customPriceRange.max, 10) : undefined;
+    } else if (globalBudgetMax !== null && globalBudgetMax > 0) {
+      // Apply global budget from settings if no local filters are set
+      max = globalBudgetMax;
     }
     
     return getFilteredCatalog(
@@ -82,7 +95,7 @@ export default function DiscoverScreen({ navigation }: any) {
       min,
       max
     );
-  }, [selectedStyle, selectedCategory, selectedBudget, customPriceRange]);
+  }, [selectedStyle, selectedCategory, selectedBudget, customPriceRange, globalBudgetMax]);
 
   // Open product detail
   const openProduct = (item: FurnitureItem) => {
@@ -107,14 +120,16 @@ export default function DiscoverScreen({ navigation }: any) {
         key={style}
         style={[
           styles.chip,
-          isSelected && styles.chipSelected,
-          isRecommended && !isSelected && styles.chipRecommended,
+          isSelected && [styles.chipSelected, { backgroundColor: theme.primary }],
+          !isSelected && isRecommended && { backgroundColor: isDark ? '#3D3426' : '#FFF3E0', borderWidth: 1, borderColor: isDark ? '#5D4E37' : '#FFB74D' },
+          !isSelected && !isRecommended && { backgroundColor: theme.surface },
         ]}
         onPress={() => toggleStyle(style as FurnitureStyle)}
       >
         <Text style={[
           styles.chipText,
           isSelected && styles.chipTextSelected,
+          !isSelected && { color: theme.text },
         ]}>
           {isRecommended && '⭐ '}{style}
         </Text>
@@ -128,10 +143,19 @@ export default function DiscoverScreen({ navigation }: any) {
     return (
       <TouchableOpacity
         key={category}
-        style={[styles.chip, styles.chipCategory, isSelected && styles.chipSelected]}
+        style={[
+          styles.chip, 
+          styles.chipCategory, 
+          isSelected && [styles.chipSelected, { backgroundColor: theme.primary }],
+          !isSelected && { backgroundColor: theme.surface },
+        ]}
         onPress={() => toggleCategory(category as FurnitureCategory)}
       >
-        <Text style={[styles.chipText, isSelected && styles.chipTextSelected]}>
+        <Text style={[
+          styles.chipText, 
+          isSelected && styles.chipTextSelected,
+          !isSelected && { color: theme.text },
+        ]}>
           {category}
         </Text>
       </TouchableOpacity>
@@ -143,18 +167,18 @@ export default function DiscoverScreen({ navigation }: any) {
     
     return (
       <TouchableOpacity
-        style={styles.productCard}
+        style={[styles.productCard, { backgroundColor: theme.card }]}
         onPress={() => openProduct(item)}
         activeOpacity={0.7}
       >
         <Image
           source={{ uri: item.imageUrl }}
-          style={styles.productImage}
+          style={[styles.productImage, { backgroundColor: theme.surface }]}
         />
         
         {/* Track Button */}
         <TouchableOpacity
-          style={styles.trackButton}
+          style={[styles.trackButton, { backgroundColor: isDark ? 'rgba(30,30,30,0.9)' : 'rgba(255,255,255,0.9)' }]}
           onPress={async () => {
             if (isTracked) {
               await PriceTrackerService.untrackProduct(item.id);
@@ -173,15 +197,15 @@ export default function DiscoverScreen({ navigation }: any) {
         </TouchableOpacity>
         
         <View style={styles.productInfo}>
-          <Text style={styles.productName} numberOfLines={2}>
+          <Text style={[styles.productName, { color: theme.text }]} numberOfLines={2}>
             {item.name}
           </Text>
           <View style={styles.productMeta}>
-            <Text style={styles.productPrice}>
+            <Text style={[styles.productPrice, { color: theme.primary }]}>
               {item.price} {item.currency}
             </Text>
-            <View style={styles.shopBadge}>
-              <Text style={styles.shopBadgeText}>{item.shop}</Text>
+            <View style={[styles.shopBadge, { backgroundColor: theme.surface }]}>
+              <Text style={[styles.shopBadgeText, { color: theme.textSecondary }]}>{item.shop}</Text>
             </View>
           </View>
         </View>
@@ -190,22 +214,22 @@ export default function DiscoverScreen({ navigation }: any) {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
+      <View style={[styles.header, { backgroundColor: isDark ? theme.card : theme.primary }]}>
         <View style={styles.headerTop}>
           <View>
             <Text style={styles.title}>Entdecken</Text>
-            <Text style={styles.subtitle}>
+            <Text style={[styles.subtitle, { color: isDark ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.8)' }]}>
               {filteredProducts.length} Produkte gefunden
             </Text>
           </View>
           
           {/* Style Quiz Button */}
           <TouchableOpacity
-            style={styles.quizButton}
+            style={[styles.quizButton, { backgroundColor: isDark ? theme.surface : theme.primary }]}
             onPress={() => navigation.navigate('StyleQuiz')}
           >
-            <Text style={styles.quizButtonText}>
+            <Text style={[styles.quizButtonText, { color: isDark ? theme.text : '#FFF' }]}>
               {quizStyle ? '⭐' : '💡'} {quizStyle ? 'Stil' : 'Finden'}
             </Text>
           </TouchableOpacity>
@@ -213,25 +237,25 @@ export default function DiscoverScreen({ navigation }: any) {
 
         {/* Quiz Result Banner */}
         {quizStyle && (
-          <View style={styles.quizBanner}>
-            <Text style={styles.quizBannerText}>
+          <View style={[styles.quizBanner, { backgroundColor: isDark ? '#2A3A35' : '#E8F5F4' }]}>
+            <Text style={[styles.quizBannerText, { color: theme.primary }]}>
               ✓ Dein Stil: <Text style={styles.quizBannerStyle}>{quizStyle}</Text>
             </Text>
             <TouchableOpacity onPress={() => setSelectedStyle(null)}>
-              <Text style={styles.quizBannerClear}>×</Text>
+              <Text style={[styles.quizBannerClear, { color: theme.primary }]}>×</Text>
             </TouchableOpacity>
           </View>
         )}
       </View>
 
       <ScrollView 
-        style={styles.filtersContainer}
+        style={[styles.filtersContainer, { backgroundColor: theme.surface }]}
         showsVerticalScrollIndicator={false}
       >
         {/* Recommended Styles */}
         {recommendedStyles.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>⭐ Für dich</Text>
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>⭐ Für dich</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <View style={styles.chipRow}>
                 {recommendedStyles.map(style => renderStyleChip(style))}
@@ -242,7 +266,7 @@ export default function DiscoverScreen({ navigation }: any) {
 
         {/* Style Chips */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Stil</Text>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>Stil</Text>
           <View style={styles.chipRow}>
             {STYLES.map(style => renderStyleChip(style))}
           </View>
@@ -250,7 +274,7 @@ export default function DiscoverScreen({ navigation }: any) {
 
         {/* Category Chips */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Kategorie</Text>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>Kategorie</Text>
           <View style={styles.chipRow}>
             {CATEGORIES.map(category => renderCategoryChip(category))}
           </View>
@@ -258,7 +282,7 @@ export default function DiscoverScreen({ navigation }: any) {
 
         {/* Budget Chips */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>💰 Budget</Text>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>💰 Budget</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <View style={styles.chipRow}>
               {BUDGET_OPTIONS.map((budget) => {
@@ -268,7 +292,8 @@ export default function DiscoverScreen({ navigation }: any) {
                     key={budget.label}
                     style={[
                       styles.budgetChip,
-                      isSelected && styles.budgetChipSelected,
+                      isSelected && [styles.budgetChipSelected, { backgroundColor: theme.primary, borderColor: theme.primary }],
+                      !isSelected && { backgroundColor: theme.surface, borderColor: theme.border },
                     ]}
                     onPress={() => {
                       setSelectedBudget(isSelected ? null : budget);
@@ -280,6 +305,7 @@ export default function DiscoverScreen({ navigation }: any) {
                     <Text style={[
                       styles.budgetChipText,
                       isSelected && styles.budgetChipTextSelected,
+                      !isSelected && { color: theme.text },
                     ]}>
                       {budget.label}
                     </Text>
@@ -293,9 +319,9 @@ export default function DiscoverScreen({ navigation }: any) {
           {(!selectedBudget || selectedBudget.label === 'Alle') && (
             <View style={styles.customPriceRow}>
               <TextInput
-                style={styles.priceInput}
+                style={[styles.priceInput, { backgroundColor: theme.card, borderColor: theme.border, color: theme.text }]}
                 placeholder="Min €"
-                placeholderTextColor="#999"
+                placeholderTextColor={theme.textMuted}
                 keyboardType="numeric"
                 value={customPriceRange.min}
                 onChangeText={(text) => {
@@ -303,11 +329,11 @@ export default function DiscoverScreen({ navigation }: any) {
                   setSelectedBudget(null);
                 }}
               />
-              <Text style={styles.priceSeparator}>—</Text>
+              <Text style={[styles.priceSeparator, { color: theme.textSecondary }]}>—</Text>
               <TextInput
-                style={styles.priceInput}
+                style={[styles.priceInput, { backgroundColor: theme.card, borderColor: theme.border, color: theme.text }]}
                 placeholder="Max €"
-                placeholderTextColor="#999"
+                placeholderTextColor={theme.textMuted}
                 keyboardType="numeric"
                 value={customPriceRange.max}
                 onChangeText={(text) => {
@@ -320,10 +346,17 @@ export default function DiscoverScreen({ navigation }: any) {
         </View>
 
         {/* Results Count */}
-        <View style={styles.resultsBar}>
-          <Text style={styles.resultsCount}>
-            {filteredProducts.length} Produkte gefunden
-          </Text>
+        <View style={[styles.resultsBar, { borderTopColor: theme.border }]}>
+          <View style={styles.resultsLeft}>
+            <Text style={[styles.resultsCount, { color: theme.textSecondary }]}>
+              {filteredProducts.length} Produkte
+            </Text>
+            {globalBudgetMax !== null && globalBudgetMax > 0 && !selectedBudget && !customPriceRange.min && !customPriceRange.max && (
+              <View style={[styles.globalBudgetBadge, { backgroundColor: theme.primary }]}>
+                <Text style={styles.globalBudgetBadgeText}>💰 bis {globalBudgetMax}€</Text>
+              </View>
+            )}
+          </View>
           {(selectedStyle || selectedCategory || selectedBudget || customPriceRange.min || customPriceRange.max) && (
             <TouchableOpacity onPress={() => {
               setSelectedStyle(null);
@@ -331,7 +364,7 @@ export default function DiscoverScreen({ navigation }: any) {
               setSelectedBudget(null);
               setCustomPriceRange({ min: '', max: '' });
             }}>
-              <Text style={styles.clearFilter}>Filter löschen</Text>
+              <Text style={[styles.clearFilter, { color: theme.primary }]}>Filter löschen</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -343,12 +376,12 @@ export default function DiscoverScreen({ navigation }: any) {
         renderItem={renderProduct}
         keyExtractor={(item) => item.id}
         numColumns={2}
-        contentContainerStyle={styles.productList}
+        contentContainerStyle={[styles.productList, { backgroundColor: theme.background }]}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Text style={styles.emptyText}>Keine Produkte gefunden</Text>
-            <Text style={styles.emptySubtext}>Versuche andere Filter</Text>
+            <Text style={[styles.emptyText, { color: theme.textSecondary }]}>Keine Produkte gefunden</Text>
+            <Text style={[styles.emptySubtext, { color: theme.textMuted }]}>Versuche andere Filter</Text>
           </View>
         }
       />
@@ -359,13 +392,11 @@ export default function DiscoverScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFF',
   },
   header: {
     paddingHorizontal: 16,
     paddingTop: 8,
     paddingBottom: 12,
-    backgroundColor: '#1A5F5A',
   },
   title: {
     fontSize: 28,
@@ -374,12 +405,10 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.8)',
     marginTop: 2,
   },
   filtersContainer: {
     maxHeight: 280,
-    backgroundColor: '#F8F8F8',
   },
   section: {
     paddingHorizontal: 16,
@@ -388,7 +417,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#333',
     marginBottom: 8,
   },
   chipRow: {
@@ -400,22 +428,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: '#E8E8E8',
   },
-  chipCategory: {
-    backgroundColor: '#E0E0E0',
-  },
-  chipSelected: {
-    backgroundColor: '#1A5F5A',
-  },
-  chipRecommended: {
-    backgroundColor: '#FFF3E0',
-    borderWidth: 1,
-    borderColor: '#FFB74D',
-  },
+  chipCategory: {},
+  chipSelected: {},
+  chipRecommended: {},
   chipText: {
     fontSize: 13,
-    color: '#333',
   },
   chipTextSelected: {
     color: '#FFF',
@@ -428,16 +446,13 @@ const styles = StyleSheet.create({
   priceInput: {
     flex: 1,
     height: 40,
-    backgroundColor: '#FFF',
     borderRadius: 8,
     paddingHorizontal: 14,
     fontSize: 14,
     borderWidth: 1,
-    borderColor: '#E0E0E0',
   },
   priceSeparator: {
     marginHorizontal: 12,
-    color: '#999',
   },
   resultsBar: {
     flexDirection: 'row',
@@ -446,16 +461,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderTopWidth: 1,
-    borderTopColor: '#E0E0E0',
+  },
+  resultsLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
   },
   resultsCount: {
     fontSize: 14,
-    color: '#666',
     fontWeight: '500',
+  },
+  globalBudgetBadge: {
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderRadius: 10,
+  },
+  globalBudgetBadgeText: {
+    color: '#FFF',
+    fontSize: 11,
+    fontWeight: '600',
   },
   clearFilter: {
     fontSize: 14,
-    color: '#1A5F5A',
     fontWeight: '600',
   },
   productList: {
@@ -464,7 +491,6 @@ const styles = StyleSheet.create({
   },
   productCard: {
     width: COLUMN_WIDTH,
-    backgroundColor: '#FFF',
     borderRadius: 12,
     marginRight: 16,
     marginBottom: 16,
@@ -478,7 +504,6 @@ const styles = StyleSheet.create({
   productImage: {
     width: '100%',
     height: COLUMN_WIDTH,
-    backgroundColor: '#F0F0F0',
   },
   productInfo: {
     padding: 10,
@@ -486,7 +511,6 @@ const styles = StyleSheet.create({
   productName: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#333',
     marginBottom: 6,
     height: 36,
   },
@@ -498,17 +522,14 @@ const styles = StyleSheet.create({
   productPrice: {
     fontSize: 15,
     fontWeight: 'bold',
-    color: '#1A5F5A',
   },
   shopBadge: {
-    backgroundColor: '#F0F0F0',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
   },
   shopBadgeText: {
     fontSize: 10,
-    color: '#666',
   },
   empty: {
     alignItems: 'center',
@@ -517,11 +538,9 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#666',
   },
   emptySubtext: {
     fontSize: 14,
-    color: '#999',
     marginTop: 4,
   },
   
@@ -532,13 +551,11 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   quizButton: {
-    backgroundColor: '#1A5F5A',
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 20,
   },
   quizButtonText: {
-    color: '#FFF',
     fontSize: 13,
     fontWeight: '600',
   },
@@ -546,7 +563,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#E8F5F4',
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 10,
@@ -554,14 +570,12 @@ const styles = StyleSheet.create({
   },
   quizBannerText: {
     fontSize: 14,
-    color: '#1A5F5A',
   },
   quizBannerStyle: {
     fontWeight: 'bold',
   },
   quizBannerClear: {
     fontSize: 20,
-    color: '#1A5F5A',
     paddingHorizontal: 8,
   },
   
@@ -570,19 +584,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 20,
-    backgroundColor: '#F0F0F0',
     marginRight: 10,
     borderWidth: 2,
-    borderColor: 'transparent',
   },
-  budgetChipSelected: {
-    backgroundColor: '#1A5F5A',
-    borderColor: '#1A5F5A',
-  },
+  budgetChipSelected: {},
   budgetChipText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
   },
   budgetChipTextSelected: {
     color: '#FFF',
@@ -599,7 +607,6 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.9)',
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',

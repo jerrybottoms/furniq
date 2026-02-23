@@ -33,7 +33,7 @@ export const MOCK_CATALOG: FurnitureItem[] = [
   { id: 'cat-3', name: 'Landskrona Sofa', imageUrl: 'https://placehold.co/300x300/e8e4d9/333333?text=Sofa', price: 899, currency: 'EUR', affiliateUrl: '', shop: 'IKEA', style: 'Skandinavisch', category: 'Sofa' },
   
   // Modern - Sofa
-  { id: 'cat-4', name: ' Milano Ledersofa', imageUrl: 'https://placehold.co/300x300/2d2d2d/ffffff?text=Sofa', price: 1299, currency: 'EUR', affiliateUrl: '', shop: 'home24', style: 'Modern', category: 'Sofa' },
+  { id: 'cat-4', name: 'Milano Ledersofa', imageUrl: 'https://placehold.co/300x300/2d2d2d/ffffff?text=Sofa', price: 1299, currency: 'EUR', affiliateUrl: '', shop: 'home24', style: 'Modern', category: 'Sofa' },
   { id: 'cat-5', name: 'Tokio Webstoff Sofa', imageUrl: 'https://placehold.co/300x300/2d2d2d/ffffff?text=Sofa', price: 749, currency: 'EUR', affiliateUrl: '', shop: 'home24', style: 'Modern', category: 'Sofa' },
   
   // Industrial - Sofa
@@ -63,7 +63,7 @@ export const MOCK_CATALOG: FurnitureItem[] = [
   { id: 'cat-19', name: 'Glastisch Modern', imageUrl: 'https://placehold.co/300x300/2d2d2d/ffffff?text=Tisch', price: 279, currency: 'EUR', affiliateUrl: '', shop: 'XXXLutz', style: 'Modern', category: 'Tisch' },
 
   // Industrial - Tisch
-  { id: 'cat-20', name: ' Loft Tisch', imageUrl: 'https://placehold.co/300x300/4a4a4a/ffffff?text=Tisch', price: 299, currency: 'EUR', affiliateUrl: '', shop: 'Westwing', style: 'Industrial', category: 'Tisch' },
+  { id: 'cat-20', name: 'Loft Tisch', imageUrl: 'https://placehold.co/300x300/4a4a4a/ffffff?text=Tisch', price: 299, currency: 'EUR', affiliateUrl: '', shop: 'Westwing', style: 'Industrial', category: 'Tisch' },
   { id: 'cat-21', name: 'Metall & Holz Tisch', imageUrl: 'https://placehold.co/300x300/4a4a4a/ffffff?text=Tisch', price: 199, currency: 'EUR', affiliateUrl: '', shop: 'Mömax', style: 'Industrial', category: 'Tisch' },
 
   // Minimalistisch - Tisch

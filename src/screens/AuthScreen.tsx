@@ -12,6 +12,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { signUp, signIn, signInWithGoogle } from '../services/supabase';
+import { useTheme } from '../context/ThemeContext';
 
 interface AuthScreenProps {
   route: {
@@ -23,6 +24,7 @@ interface AuthScreenProps {
 }
 
 export default function AuthScreen({ route, navigation }: AuthScreenProps) {
+  const { theme } = useTheme();
   const mode = route.params?.mode || 'signin';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -45,7 +47,7 @@ export default function AuthScreen({ route, navigation }: AuthScreenProps) {
 
     try {
       if (isSignUp) {
-        const { user, error } = await signUp(email, password);
+        const { error } = await signUp(email, password);
         if (error) {
           Alert.alert('Fehler', error);
         } else {
@@ -54,7 +56,7 @@ export default function AuthScreen({ route, navigation }: AuthScreenProps) {
           ]);
         }
       } else {
-        const { user, error } = await signIn(email, password);
+        const { error } = await signIn(email, password);
         if (error) {
           Alert.alert('Fehler', error);
         } else {
@@ -91,15 +93,15 @@ export default function AuthScreen({ route, navigation }: AuthScreenProps) {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: theme.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
-          <Text style={styles.title}>
+          <Text style={[styles.title, { color: theme.text }]}>
             {isSignUp ? 'Account erstellen' : 'Anmelden'}
           </Text>
-          <Text style={styles.subtitle}>
+          <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
             {isSignUp
               ? 'Erstelle einen Account, um Favoriten zu speichern.'
               : 'Melde dich an, um deine Favoriten zu sehen.'}
@@ -108,33 +110,33 @@ export default function AuthScreen({ route, navigation }: AuthScreenProps) {
 
         <View style={styles.form}>
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Email</Text>
+            <Text style={[styles.label, { color: theme.text }]}>Email</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { backgroundColor: theme.surface, borderColor: theme.border, color: theme.text }]}
               value={email}
               onChangeText={setEmail}
               placeholder="deine@email.de"
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
-              placeholderTextColor="#999"
+              placeholderTextColor={theme.placeholder}
             />
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Passwort</Text>
+            <Text style={[styles.label, { color: theme.text }]}>Passwort</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { backgroundColor: theme.surface, borderColor: theme.border, color: theme.text }]}
               value={password}
               onChangeText={setPassword}
               placeholder="••••••••"
               secureTextEntry
-              placeholderTextColor="#999"
+              placeholderTextColor={theme.placeholder}
             />
           </View>
 
           <TouchableOpacity
-            style={[styles.button, loading && styles.buttonDisabled]}
+            style={[styles.button, loading && styles.buttonDisabled, { backgroundColor: theme.primary }]}
             onPress={handleSubmit}
             disabled={loading}
           >
@@ -148,26 +150,26 @@ export default function AuthScreen({ route, navigation }: AuthScreenProps) {
           </TouchableOpacity>
 
           <View style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>oder</Text>
-            <View style={styles.dividerLine} />
+            <View style={[styles.dividerLine, { backgroundColor: theme.border }]} />
+            <Text style={[styles.dividerText, { color: theme.textSecondary }]}>oder</Text>
+            <View style={[styles.dividerLine, { backgroundColor: theme.border }]} />
           </View>
 
           <TouchableOpacity
-            style={[styles.googleButton, loading && styles.buttonDisabled]}
+            style={[styles.googleButton, loading && styles.buttonDisabled, { backgroundColor: theme.card, borderColor: theme.border }]}
             onPress={handleGoogleSignIn}
             disabled={loading}
           >
-            <Text style={styles.googleButtonText}>Mit Google anmelden</Text>
+            <Text style={[styles.googleButtonText, { color: theme.text }]}>Mit Google anmelden</Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.footer}>
-          <Text style={styles.footerText}>
+          <Text style={[styles.footerText, { color: theme.textSecondary }]}>
             {isSignUp ? 'Schon einen Account?' : 'Noch kein Account?'}
           </Text>
           <TouchableOpacity onPress={toggleMode}>
-            <Text style={styles.footerLink}>
+            <Text style={[styles.footerLink, { color: theme.primary }]}>
               {isSignUp ? 'Hier anmelden' : 'Hier registrieren'}
             </Text>
           </TouchableOpacity>
@@ -180,7 +182,6 @@ export default function AuthScreen({ route, navigation }: AuthScreenProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFF',
   },
   scrollContent: {
     flexGrow: 1,
@@ -194,12 +195,10 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#333',
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 14,
-    color: '#666',
     textAlign: 'center',
   },
   form: {
@@ -211,19 +210,15 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#333',
     marginBottom: 6,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#E0E0E0',
     borderRadius: 8,
     padding: 14,
     fontSize: 16,
-    backgroundColor: '#F9F9F9',
   },
   button: {
-    backgroundColor: '#1A5F5A',
     padding: 16,
     borderRadius: 8,
     alignItems: 'center',
@@ -245,23 +240,18 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#E0E0E0',
   },
   dividerText: {
     marginHorizontal: 12,
-    color: '#999',
     fontSize: 12,
   },
   googleButton: {
-    backgroundColor: '#FFF',
     borderWidth: 1,
-    borderColor: '#E0E0E0',
     padding: 16,
     borderRadius: 8,
     alignItems: 'center',
   },
   googleButtonText: {
-    color: '#333',
     fontSize: 16,
     fontWeight: '500',
   },
@@ -271,11 +261,9 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   footerText: {
-    color: '#666',
     fontSize: 14,
   },
   footerLink: {
-    color: '#1A5F5A',
     fontSize: 14,
     fontWeight: '600',
   },

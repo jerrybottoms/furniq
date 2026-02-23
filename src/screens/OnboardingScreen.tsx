@@ -10,6 +10,7 @@ import {
   Image,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useTheme } from '../context/ThemeContext';
 
 const { width } = Dimensions.get('window');
 
@@ -44,6 +45,7 @@ const PAGES: OnboardingPage[] = [
 ];
 
 export default function OnboardingScreen({ onComplete }: { onComplete: () => void }) {
+  const { theme } = useTheme();
   const [currentIndex, setCurrentIndex] = useState(0);
   const flatListRef = useRef<FlatList>(null);
 
@@ -66,8 +68,8 @@ export default function OnboardingScreen({ onComplete }: { onComplete: () => voi
   const renderPage = ({ item }: { item: OnboardingPage }) => (
     <View style={styles.page}>
       <Text style={styles.emoji}>{item.emoji}</Text>
-      <Text style={styles.title}>{item.title}</Text>
-      <Text style={styles.description}>{item.description}</Text>
+      <Text style={[styles.title, { color: theme.text }]}>{item.title}</Text>
+      <Text style={[styles.description, { color: theme.textSecondary }]}>{item.description}</Text>
     </View>
   );
 
@@ -76,16 +78,16 @@ export default function OnboardingScreen({ onComplete }: { onComplete: () => voi
       {PAGES.map((_, index) => (
         <View
           key={index}
-          style={[styles.dot, index === currentIndex && styles.dotActive]}
+          style={[styles.dot, index === currentIndex && [styles.dotActive, { backgroundColor: theme.primary }]]}
         />
       ))}
     </View>
   );
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
       <TouchableOpacity style={styles.skipButton} onPress={handleSkip}>
-        <Text style={styles.skipText}>Überspringen</Text>
+        <Text style={[styles.skipText, { color: theme.textSecondary }]}>Überspringen</Text>
       </TouchableOpacity>
 
       <FlatList
@@ -106,7 +108,7 @@ export default function OnboardingScreen({ onComplete }: { onComplete: () => voi
       {renderDots()}
 
       <View style={styles.footer}>
-        <TouchableOpacity style={styles.button} onPress={handleNext}>
+        <TouchableOpacity style={[styles.button, { backgroundColor: theme.primary }]} onPress={handleNext}>
           <Text style={styles.buttonText}>
             {currentIndex === PAGES.length - 1 ? 'Loslegen!' : 'Weiter'}
           </Text>
@@ -119,7 +121,6 @@ export default function OnboardingScreen({ onComplete }: { onComplete: () => voi
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFF',
   },
   skipButton: {
     position: 'absolute',
@@ -130,7 +131,6 @@ const styles = StyleSheet.create({
   },
   skipText: {
     fontSize: 16,
-    color: '#666',
   },
   list: {
     flex: 1,
@@ -149,13 +149,11 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#333',
     marginBottom: 16,
     textAlign: 'center',
   },
   description: {
     fontSize: 18,
-    color: '#666',
     textAlign: 'center',
     lineHeight: 26,
   },
@@ -171,15 +169,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#E0E0E0',
     marginHorizontal: 5,
   },
-  dotActive: {
-    backgroundColor: '#1A5F5A',
-  },
+  dotActive: {},
   footer: {
     paddingHorizontal: 24,
     paddingBottom: 50,
   },
   button: {
-    backgroundColor: '#1A5F5A',
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
