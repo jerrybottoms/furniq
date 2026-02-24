@@ -1,4 +1,4 @@
-// Settings Screen - Feature 1 + Dark Mode
+// Settings Screen - Redesigned mit Apple Grouped List Style
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -15,6 +15,7 @@ import { getSettings, saveSettings } from '../services/settings';
 import { getBudget, setBudget, clearBudget } from '../services/budget';
 import { Settings } from '../types';
 import { useTheme } from '../context/ThemeContext';
+import { typography, spacing, borderRadius, shadows } from '../theme';
 
 const COUNTRIES = [
   { code: 'DE', name: 'Deutschland', flag: '🇩🇪', currency: 'EUR' },
@@ -104,7 +105,7 @@ export default function SettingsScreen({ navigation }: any) {
 
   if (loading) {
     return (
-      <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <View style={[styles.container, { backgroundColor: theme.surface }]}>
         <Text style={{ color: theme.text }}>Lädt...</Text>
       </View>
     );
@@ -112,13 +113,10 @@ export default function SettingsScreen({ navigation }: any) {
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: theme.surface }]}>
-      {/* Dark Mode Auswahl */}
+      
+      {/* DESIGN Section */}
+      <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>DESIGN</Text>
       <View style={[styles.section, { backgroundColor: theme.card }]}>
-        <Text style={[styles.sectionTitle, { color: theme.text }]}>🌙 Design</Text>
-        <Text style={[styles.sectionSubtitle, { color: theme.textSecondary }]}>
-          Wähle dein bevorzugtes Design
-        </Text>
-        
         <View style={styles.themeModeContainer}>
           {themeModes.map((mode) => (
             <TouchableOpacity
@@ -146,51 +144,49 @@ export default function SettingsScreen({ navigation }: any) {
         </View>
       </View>
 
-      {/* Land Auswahl */}
+      {/* LAND Section */}
+      <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>LAND</Text>
       <View style={[styles.section, { backgroundColor: theme.card }]}>
-        <Text style={[styles.sectionTitle, { color: theme.text }]}>🌍 Land</Text>
-        <Text style={[styles.sectionSubtitle, { color: theme.textSecondary }]}>
-          Bestimmt welche Shops angezeigt werden
-        </Text>
         <View style={styles.countryGrid}>
-          {COUNTRIES.map((country) => (
-            <TouchableOpacity
-              key={country.code}
-              style={[
-                styles.countryButton,
-                {
-                  backgroundColor: theme.surface,
-                  borderColor: settings.country === country.code ? theme.primary : theme.border,
-                },
-                settings.country === country.code && { backgroundColor: theme.primary },
-              ]}
-              onPress={() => updateSetting('country', country.code)}
-            >
-              <Text style={styles.countryFlag}>{country.flag}</Text>
-              <Text
+          {COUNTRIES.map((country, index) => (
+            <React.Fragment key={country.code}>
+              <TouchableOpacity
                 style={[
-                  styles.countryName,
-                  { color: settings.country === country.code ? '#FFF' : theme.text },
+                  styles.countryButton,
+                  {
+                    backgroundColor: theme.surface,
+                    borderColor: settings.country === country.code ? theme.primary : theme.border,
+                  },
+                  settings.country === country.code && { backgroundColor: theme.primary },
                 ]}
+                onPress={() => updateSetting('country', country.code)}
               >
-                {country.name}
-              </Text>
-              <Text style={[styles.countryCurrency, { color: theme.textSecondary }]}>
-                {country.currency}
-              </Text>
-            </TouchableOpacity>
+                <Text style={styles.countryFlag}>{country.flag}</Text>
+                <Text
+                  style={[
+                    styles.countryName,
+                    { color: settings.country === country.code ? '#FFF' : theme.text },
+                  ]}
+                >
+                  {country.name}
+                </Text>
+                <Text style={[styles.countryCurrency, { color: theme.textSecondary }]}>
+                  {country.currency}
+                </Text>
+              </TouchableOpacity>
+            </React.Fragment>
           ))}
         </View>
       </View>
 
-      {/* Einstellungen */}
+      {/* BENACHRICHTIGUNGEN Section */}
+      <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>BENACHRICHTIGUNGEN</Text>
       <View style={[styles.section, { backgroundColor: theme.card }]}>
-        <Text style={[styles.sectionTitle, { color: theme.text }]}>⚙️ Einstellungen</Text>
-
-        <View style={[styles.settingRow, { borderBottomColor: theme.borderLight }]}>
-          <View style={styles.settingInfo}>
-            <Text style={[styles.settingLabel, { color: theme.text }]}>Benachrichtigungen</Text>
-            <Text style={[styles.settingDescription, { color: theme.textSecondary }]}>
+        
+        <View style={[styles.row, { borderBottomColor: theme.separator }]}>
+          <View style={styles.rowContent}>
+            <Text style={[styles.rowLabel, { color: theme.text }]}>Benachrichtigungen</Text>
+            <Text style={[styles.rowDescription, { color: theme.textSecondary }]}>
               Preise & Deals (in Entwicklung)
             </Text>
           </View>
@@ -204,33 +200,28 @@ export default function SettingsScreen({ navigation }: any) {
           />
         </View>
 
-        {/* Price Alerts Link */}
         <TouchableOpacity
-          style={[styles.settingRow, { borderBottomColor: theme.borderLight }]}
+          style={styles.row}
           onPress={() => navigation.navigate('PriceAlerts')}
         >
-          <View style={styles.settingInfo}>
-            <Text style={[styles.settingLabel, { color: theme.text }]}>🔔 Preis-Alarme</Text>
-            <Text style={[styles.settingDescription, { color: theme.textSecondary }]}>
+          <View style={styles.rowContent}>
+            <Text style={[styles.rowLabel, { color: theme.text }]}>🔔 Preis-Alarme</Text>
+            <Text style={[styles.rowDescription, { color: theme.textSecondary }]}>
               Verwalte deine Preisbenachrichtigungen
             </Text>
           </View>
-          <Text style={[styles.linkArrow, { color: theme.textSecondary }]}>→</Text>
+          <Text style={[styles.arrow, { color: theme.textTertiary }]}>›</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Budget Section */}
+      {/* BUDGET Section */}
+      <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>BUDGET</Text>
       <View style={[styles.section, { backgroundColor: theme.card }]}>
-        <Text style={[styles.sectionTitle, { color: theme.text }]}>💰 Budget</Text>
-        <Text style={[styles.sectionSubtitle, { color: theme.textSecondary }]}>
-          Maximale Preisgrenze für Produkte
-        </Text>
-
-        {/* Budget Toggle */}
-        <View style={[styles.settingRow, { borderBottomColor: theme.borderLight }]}>
-          <View style={styles.settingInfo}>
-            <Text style={[styles.settingLabel, { color: theme.text }]}>Budget-Filter aktivieren</Text>
-            <Text style={[styles.settingDescription, { color: theme.textSecondary }]}>
+        
+        <View style={[styles.row, { borderBottomColor: theme.separator }]}>
+          <View style={styles.rowContent}>
+            <Text style={[styles.rowLabel, { color: theme.text }]}>Budget-Filter aktivieren</Text>
+            <Text style={[styles.rowDescription, { color: theme.textSecondary }]}>
               Zeigt nur Produkte bis zu diesem Preis
             </Text>
           </View>
@@ -248,7 +239,6 @@ export default function SettingsScreen({ navigation }: any) {
           />
         </View>
 
-        {/* Budget Input */}
         {budgetEnabled && (
           <View style={styles.budgetInputContainer}>
             <Text style={[styles.budgetLabel, { color: theme.text }]}>Maximalpreis</Text>
@@ -271,7 +261,7 @@ export default function SettingsScreen({ navigation }: any) {
                   }
                 }}
                 placeholder="500"
-                placeholderTextColor={theme.textMuted}
+                placeholderTextColor={theme.textTertiary}
                 keyboardType="numeric"
               />
               <Text style={[styles.budgetSuffix, { color: theme.textSecondary }]}>€</Text>
@@ -319,34 +309,34 @@ export default function SettingsScreen({ navigation }: any) {
         )}
       </View>
 
-      {/* Über */}
+      {/* ÜBER Section */}
+      <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>ÜBER</Text>
       <View style={[styles.section, { backgroundColor: theme.card }]}>
-        <Text style={[styles.sectionTitle, { color: theme.text }]}>ℹ️ Über</Text>
-
+        
         <TouchableOpacity
-          style={[styles.linkRow, { borderBottomColor: theme.borderLight }]}
+          style={[styles.row, { borderBottomColor: theme.separator }]}
           onPress={() => openLink('https://example.com/datenschutz')}
         >
-          <Text style={[styles.linkText, { color: theme.primary }]}>Datenschutzerklärung</Text>
-          <Text style={[styles.linkArrow, { color: theme.textSecondary }]}>→</Text>
+          <Text style={[styles.linkText, { color: theme.text }]}>Datenschutzerklärung</Text>
+          <Text style={[styles.arrow, { color: theme.textTertiary }]}>›</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.linkRow, { borderBottomColor: theme.borderLight }]}
+          style={[styles.row, { borderBottomColor: theme.separator }]}
           onPress={() => openLink('https://example.com/impressum')}
         >
-          <Text style={[styles.linkText, { color: theme.primary }]}>Impressum</Text>
-          <Text style={[styles.linkArrow, { color: theme.textSecondary }]}>→</Text>
+          <Text style={[styles.linkText, { color: theme.text }]}>Impressum</Text>
+          <Text style={[styles.arrow, { color: theme.textTertiary }]}>›</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={[styles.linkRow, { borderBottomColor: theme.borderLight }]} onPress={resetData}>
+        <TouchableOpacity style={styles.row} onPress={resetData}>
           <Text style={styles.linkTextDanger}>Einstellungen zurücksetzen</Text>
         </TouchableOpacity>
       </View>
 
       {/* Version */}
       <View style={styles.version}>
-        <Text style={[styles.versionText, { color: theme.textMuted }]}>Furniq v1.0.0</Text>
+        <Text style={[styles.versionText, { color: theme.textTertiary }]}>Furniq v1.0.0</Text>
       </View>
     </ScrollView>
   );
@@ -356,117 +346,116 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  section: {
-    marginTop: 20,
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-  },
+  // Section Title (outside the card, uppercase, Apple style)
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 4,
+    ...typography.footnote,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginLeft: spacing.md + spacing.sm,
+    marginBottom: spacing.xs,
+    marginTop: spacing.lg,
   },
-  sectionSubtitle: {
-    fontSize: 13,
-    marginBottom: 16,
+  // Section Card (Apple grouped list style)
+  section: {
+    marginHorizontal: spacing.md,
+    borderRadius: borderRadius.medium,
+    overflow: 'hidden',
   },
+  // Row within section
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: spacing.sm + 2,
+    paddingHorizontal: spacing.md,
+    borderBottomWidth: 1,
+  },
+  rowContent: {
+    flex: 1,
+  },
+  rowLabel: {
+    ...typography.body,
+  },
+  rowDescription: {
+    ...typography.footnote,
+    marginTop: 2,
+  },
+  // Arrow
+  arrow: {
+    ...typography.body,
+    marginLeft: spacing.xs,
+  },
+  // Link row
+  linkText: {
+    ...typography.body,
+    flex: 1,
+  },
+  linkTextDanger: {
+    ...typography.body,
+    color: '#FF3B30',
+  },
+  
+  // Theme Mode Buttons
   themeModeContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 10,
+    gap: spacing.xs,
+    padding: spacing.sm,
   },
   themeModeButton: {
     flex: 1,
     flexDirection: 'column',
     alignItems: 'center',
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 2,
+    padding: spacing.sm + 4,
+    borderRadius: borderRadius.medium,
+    borderWidth: 1.5,
   },
   themeModeIcon: {
     fontSize: 24,
-    marginBottom: 8,
+    marginBottom: spacing.xxs,
   },
   themeModeLabel: {
-    fontSize: 14,
+    ...typography.footnote,
     fontWeight: '600',
   },
+  
+  // Country Buttons
   countryGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
+    padding: spacing.sm,
+    gap: spacing.xs,
   },
   countryButton: {
     width: '31%',
-    padding: 12,
-    borderRadius: 12,
+    padding: spacing.sm,
+    borderRadius: borderRadius.medium,
     alignItems: 'center',
     borderWidth: 1,
   },
   countryFlag: {
     fontSize: 28,
-    marginBottom: 4,
+    marginBottom: spacing.xxs,
   },
   countryName: {
-    fontSize: 12,
+    ...typography.caption1,
     fontWeight: '500',
     textAlign: 'center',
   },
   countryCurrency: {
-    fontSize: 11,
+    ...typography.caption2,
     marginTop: 2,
-  },
-  settingRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-  },
-  settingInfo: {
-    flex: 1,
-  },
-  settingLabel: {
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  settingDescription: {
-    fontSize: 12,
-    marginTop: 2,
-  },
-  linkRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-  },
-  linkText: {
-    fontSize: 16,
-  },
-  linkTextDanger: {
-    fontSize: 16,
-    color: '#FF4444',
-  },
-  linkArrow: {
-    fontSize: 16,
-  },
-  version: {
-    padding: 24,
-    alignItems: 'center',
-  },
-  versionText: {
-    fontSize: 12,
   },
   
   // Budget Styles
   budgetInputContainer: {
-    paddingTop: 16,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm + 4,
   },
   budgetLabel: {
-    fontSize: 14,
+    ...typography.footnote,
     fontWeight: '500',
-    marginBottom: 8,
+    marginBottom: spacing.xs,
   },
   budgetInputRow: {
     flexDirection: 'row',
@@ -475,41 +464,51 @@ const styles = StyleSheet.create({
   budgetInput: {
     flex: 1,
     height: 44,
-    borderRadius: 8,
-    paddingHorizontal: 14,
-    fontSize: 16,
+    borderRadius: borderRadius.small,
+    paddingHorizontal: spacing.sm + 2,
+    ...typography.body,
     borderWidth: 1,
   },
   budgetSuffix: {
-    fontSize: 16,
-    marginLeft: 10,
+    ...typography.body,
+    marginLeft: spacing.xs + spacing.xxs,
   },
   quickBudgetRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 16,
+    gap: spacing.xs,
+    marginTop: spacing.sm + 4,
   },
   quickBudgetButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 16,
+    paddingHorizontal: spacing.sm + 4,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.full,
     borderWidth: 1,
   },
   quickBudgetText: {
-    fontSize: 14,
+    ...typography.footnote,
     fontWeight: '500',
   },
   clearBudgetButton: {
-    marginTop: 16,
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 8,
+    marginTop: spacing.sm + 4,
+    paddingVertical: spacing.xs + 2,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.small,
     borderWidth: 1,
     alignSelf: 'flex-start',
   },
   clearBudgetText: {
-    fontSize: 14,
+    ...typography.footnote,
     fontWeight: '600',
+  },
+  
+  // Version footer
+  version: {
+    alignItems: 'center',
+    marginBottom: spacing.xxxl,
+    marginTop: spacing.lg,
+  },
+  versionText: {
+    ...typography.caption1,
   },
 });

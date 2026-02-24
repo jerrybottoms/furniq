@@ -1,4 +1,4 @@
-// Onboarding Screen - Feature 5
+// Onboarding Screen - Redesigned mit Apple Style
 import React, { useState, useRef } from 'react';
 import {
   View,
@@ -7,10 +7,10 @@ import {
   Dimensions,
   TouchableOpacity,
   StyleSheet,
-  Image,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../context/ThemeContext';
+import { typography, spacing, borderRadius } from '../theme';
 
 const { width } = Dimensions.get('window');
 
@@ -78,7 +78,12 @@ export default function OnboardingScreen({ onComplete }: { onComplete: () => voi
       {PAGES.map((_, index) => (
         <View
           key={index}
-          style={[styles.dot, index === currentIndex && [styles.dotActive, { backgroundColor: theme.primary }]]}
+          style={[
+            styles.dot,
+            index === currentIndex
+              ? [styles.dotActive, { backgroundColor: theme.primary }]
+              : { backgroundColor: theme.separator },
+          ]}
         />
       ))}
     </View>
@@ -108,8 +113,11 @@ export default function OnboardingScreen({ onComplete }: { onComplete: () => voi
       {renderDots()}
 
       <View style={styles.footer}>
-        <TouchableOpacity style={[styles.button, { backgroundColor: theme.primary }]} onPress={handleNext}>
-          <Text style={styles.buttonText}>
+        <TouchableOpacity
+          style={[styles.button, { backgroundColor: theme.primary }]}
+          onPress={handleNext}
+        >
+          <Text style={[styles.buttonText, { color: theme.background }]}>
             {currentIndex === PAGES.length - 1 ? 'Loslegen!' : 'Weiter'}
           </Text>
         </TouchableOpacity>
@@ -125,12 +133,12 @@ const styles = StyleSheet.create({
   skipButton: {
     position: 'absolute',
     top: 60,
-    right: 20,
+    right: spacing.lg,
     zIndex: 10,
-    padding: 10,
+    padding: spacing.xs,
   },
   skipText: {
-    fontSize: 16,
+    ...typography.subhead,
   },
   list: {
     flex: 1,
@@ -140,48 +148,44 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 40,
+    paddingHorizontal: spacing.xxxl,
   },
   emoji: {
-    fontSize: 100,
-    marginBottom: 30,
+    fontSize: 80,
+    marginBottom: spacing.xxl,
   },
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    marginBottom: 16,
+    ...typography.title1,
+    marginBottom: spacing.md,
     textAlign: 'center',
   },
   description: {
-    fontSize: 18,
+    ...typography.body,
     textAlign: 'center',
-    lineHeight: 26,
+    lineHeight: 24,
   },
   dots: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginBottom: 40,
+    marginBottom: spacing.xl,
   },
   dot: {
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#E0E0E0',
-    marginHorizontal: 5,
+    marginHorizontal: spacing.xxs,
   },
   dotActive: {},
   footer: {
-    paddingHorizontal: 24,
-    paddingBottom: 50,
+    paddingHorizontal: spacing.xl,
+    paddingBottom: spacing.xxxl + 10,
   },
   button: {
-    paddingVertical: 16,
-    borderRadius: 12,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.medium,
     alignItems: 'center',
   },
   buttonText: {
-    color: '#FFF',
-    fontSize: 18,
-    fontWeight: '600',
+    ...typography.headline,
   },
 });

@@ -1,5 +1,5 @@
-// Search History Screen - Zeigt alle Suchanfragen
-import React, { useState, useEffect, useCallback } from 'react';
+// Search History Screen — Clean List mit Thumbnails
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,9 +10,11 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '../context/ThemeContext';
 import { getHistory, clearHistory, deleteEntry, formatRelativeTime, HistoryItem } from '../services/history';
+import { typography, spacing, borderRadius, shadows } from '../theme';
 
 interface SearchHistoryScreenProps {
   navigation: any;
@@ -36,155 +38,121 @@ export default function SearchHistoryScreen({ navigation }: SearchHistoryScreenP
     }
   };
 
-  // Load on mount and when screen comes into focus
   useFocusEffect(
-    useCallback(() => {
-      loadHistory();
-    }, [])
+    useCallback(() => { loadHistory(); }, [])
   );
 
-  const onRefresh = () => {
-    setRefreshing(true);
-    loadHistory();
-  };
+  const onRefresh = () => { setRefreshing(true); loadHistory(); };
 
-  // Handle delete single entry
   const handleDeleteEntry = (id: string) => {
     Alert.alert(
       'Eintrag löschen',
       'Möchtest du diesen Eintrag wirklich löschen?',
       [
         { text: 'Abbrechen', style: 'cancel' },
-        {
-          text: 'Löschen',
-          style: 'destructive',
-          onPress: async () => {
-            await deleteEntry(id);
-            loadHistory();
-          },
-        },
+        { text: 'Löschen', style: 'destructive', onPress: async () => { await deleteEntry(id); loadHistory(); } },
       ]
     );
   };
 
-  // Handle clear all history
   const handleClearAll = () => {
     Alert.alert(
       'Verlauf löschen',
       'Möchtest du den gesamten Suchverlauf löschen?',
       [
         { text: 'Abbrechen', style: 'cancel' },
-        {
-          text: 'Alles löschen',
-          style: 'destructive',
-          onPress: async () => {
-            await clearHistory();
-            loadHistory();
-          },
-        },
+        { text: 'Alles löschen', style: 'destructive', onPress: async () => { await clearHistory(); loadHistory(); } },
       ]
     );
   };
 
-  // Handle tap on entry - navigate to results (re-run search)
   const handleEntryPress = (item: HistoryItem) => {
-    // For now, show alert - the ResultsScreen needs image/analysis data
-    // which isn't stored in history. Could implement "saved results" later.
     Alert.alert(
       'Suche wiederholen',
       `Suche nach "${item.query || `${item.category} • ${item.style}`}" erneut ausführen?`,
       [
         { text: 'Abbrechen', style: 'cancel' },
-        {
-          text: 'OK',
-          onPress: () => {
-            // Navigate back to home - user can re-analyze the image
-            navigation.goBack();
-          },
-        },
+        { text: 'OK', onPress: () => navigation.goBack() },
       ]
     );
   };
 
-  // Render empty state
-  const renderEmptyState = () => (
+  const renderEmpty = () => (
     <View style={styles.emptyContainer}>
       <Text style={styles.emptyIcon}>📭</Text>
       <Text style={[styles.emptyTitle, { color: theme.text }]}>Kein Suchverlauf</Text>
-      <Text style={[styles.emptySubtitle, { color: theme.textSecondary }]}>
+      <Text style={[styles.emptySub, { color: theme.textSecondary }]}>
         Deine bisherigen Suchen werden hier angezeigt.
       </Text>
     </View>
   );
 
-  // Render history item
-  const renderHistoryItem = ({ item }: { item: HistoryItem }) => (
+  const renderItem = ({ item }: { item: HistoryItem }) => (
     <TouchableOpacity
-      style={[styles.historyItem, { backgroundColor: theme.card, borderColor: theme.border }]}
+      style={[styles.item, { backgroundColor: theme.card }, shadows.card]}
       onPress={() => handleEntryPress(item)}
       onLongPress={() => handleDeleteEntry(item.id)}
+      activeOpacity={0.75}
     >
-      <View style={styles.historyItemContent}>
-        <Text style={[styles.historyItemText, { color: theme.text }]}>
-          📷 {item.query || `${item.category} • ${item.style}`}
+      {/* Thumbnail placeholder */}
+      <View style={[styles.thumb, { backgroundColor: theme.surface }]}>
+        <Text style={styles.thumbIcon}>📷</Text>
+      </View>
+
+      {/* Content */}
+      <View style={styles.itemContent}>
+        <Text style={[styles.itemText, { color: theme.text }]} numberOfLines={1}>
+          {item.query || `${item.category} • ${item.style}`}
         </Text>
-        <View style={styles.historyItemMeta}>
-          <Text style={[styles.historyItemMetaText, { color: theme.textSecondary }]}>
-            {item.productCount} Produkte
-          </Text>
-          <Text style={[styles.historyItemMetaDot, { color: theme.textMuted }]}>•</Text>
-          <Text style={[styles.historyItemMetaText, { color: theme.textSecondary }]}>
-            {formatRelativeTime(item.timestamp)}
-          </Text>
-        </View>
+        <Text style={[styles.itemMeta, { color: theme.textSecondary }]}>
+          {item.productCount} Produkte · {formatRelativeTime(item.timestamp)}
+        </Text>
       </View>
-      
-      <View style={styles.historyItemActions}>
-        <TouchableOpacity
-          style={[styles.deleteButton, { backgroundColor: theme.error + '20' }]}
-          onPress={() => handleDeleteEntry(item.id)}
-        >
-          <Text style={[styles.deleteButtonText, { color: theme.error }]}>🗑️</Text>
-        </TouchableOpacity>
-        <Text style={[styles.historyArrow, { color: theme.textSecondary }]}>→</Text>
-      </View>
+
+      {/* Actions */}
+      <TouchableOpacity
+        style={[styles.deleteBtn, { backgroundColor: theme.error + '18' }]}
+        onPress={() => handleDeleteEntry(item.id)}
+        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+      >
+        <Text style={[styles.deleteBtnIcon, { color: theme.error }]}>🗑️</Text>
+      </TouchableOpacity>
+      <Text style={[styles.arrow, { color: theme.textSecondary }]}>›</Text>
     </TouchableOpacity>
   );
 
   if (isLoading) {
     return (
-      <View style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
-        <ActivityIndicator size="large" color={theme.primary} />
-      </View>
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
+        <Text style={[styles.largeTitle, { color: theme.text }]}>Suchverlauf</Text>
+        <View style={styles.loadingWrap}>
+          <ActivityIndicator size="large" color={theme.primary} />
+        </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
-      {/* Header Actions */}
-      {history.length > 0 && (
-        <View style={[styles.headerActions, { borderBottomColor: theme.border }]}>
-          <Text style={[styles.historyCount, { color: theme.textSecondary }]}>
-            {history.length} Suchen
-          </Text>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
+      {/* Page header */}
+      <View style={styles.pageHeader}>
+        <Text style={[styles.largeTitle, { color: theme.text }]}>Suchverlauf</Text>
+        {history.length > 0 && (
           <TouchableOpacity
-            style={[styles.clearAllButton, { backgroundColor: theme.error + '15' }]}
+            style={[styles.clearAllBtn, { backgroundColor: theme.error + '18' }]}
             onPress={handleClearAll}
           >
-            <Text style={[styles.clearAllText, { color: theme.error }]}>
-              Alles löschen
-            </Text>
+            <Text style={[styles.clearAllText, { color: theme.error }]}>Alles löschen</Text>
           </TouchableOpacity>
-        </View>
-      )}
+        )}
+      </View>
 
-      {/* History List */}
       <FlatList
         data={history}
-        renderItem={renderHistoryItem}
+        renderItem={renderItem}
         keyExtractor={item => item.id}
         contentContainerStyle={history.length === 0 ? styles.emptyList : styles.list}
-        ListEmptyComponent={renderEmptyState}
+        ListEmptyComponent={renderEmpty}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -196,125 +164,86 @@ export default function SearchHistoryScreen({ navigation }: SearchHistoryScreenP
         showsVerticalScrollIndicator={false}
       />
 
-      {/* Info Text */}
       {history.length > 0 && (
-        <View style={[styles.infoContainer, { backgroundColor: theme.surface }]}>
-          <Text style={[styles.infoText, { color: theme.textMuted }]}>
-            Tippe auf einen Eintrag um die Suche zu wiederholen.{'\n'}
-            Lange drücken oder 🗑️ zum Löschen.
+        <View style={[styles.hint, { backgroundColor: theme.surface }]}>
+          <Text style={[styles.hintText, { color: theme.textMuted }]}>
+            Tippe zum Wiederholen · Lang drücken oder 🗑️ zum Löschen
           </Text>
         </View>
       )}
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerActions: {
+  container: { flex: 1 },
+
+  pageHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
+    alignItems: 'flex-end',
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.xs,
   },
-  historyCount: {
-    fontSize: 14,
+  largeTitle: {
+    fontSize: 34,
+    fontWeight: '700',
+    letterSpacing: 0.37,
   },
-  clearAllButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
+  clearAllBtn: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.full,
   },
-  clearAllText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  list: {
-    padding: 16,
-  },
-  emptyList: {
-    flex: 1,
-  },
-  historyItem: {
+  clearAllText: { fontSize: 13, fontWeight: '600' },
+
+  list: { paddingHorizontal: spacing.md, paddingBottom: spacing.xl },
+  emptyList: { flex: 1 },
+
+  item: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 14,
-    borderRadius: 12,
-    marginBottom: 10,
-    borderWidth: 1,
+    borderRadius: borderRadius.medium,
+    padding: spacing.sm,
+    marginBottom: spacing.sm,
   },
-  historyItemContent: {
-    flex: 1,
-  },
-  historyItemText: {
-    fontSize: 15,
-    fontWeight: '500',
-    marginBottom: 4,
-  },
-  historyItemMeta: {
-    flexDirection: 'row',
+  thumb: {
+    width: 52,
+    height: 52,
+    borderRadius: borderRadius.small,
+    justifyContent: 'center',
     alignItems: 'center',
+    marginRight: spacing.sm,
   },
-  historyItemMetaText: {
-    fontSize: 12,
+  thumbIcon: { fontSize: 24 },
+  itemContent: { flex: 1 },
+  itemText: { fontSize: 15, fontWeight: '500', marginBottom: 3 },
+  itemMeta: { fontSize: 12 },
+  deleteBtn: {
+    padding: spacing.xs,
+    borderRadius: borderRadius.small,
+    marginRight: spacing.xs,
   },
-  historyItemMetaDot: {
-    fontSize: 12,
-    marginHorizontal: 6,
-  },
-  historyItemActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  deleteButton: {
-    padding: 8,
-    borderRadius: 8,
-  },
-  deleteButtonText: {
-    fontSize: 16,
-  },
-  historyArrow: {
-    fontSize: 18,
-    marginLeft: 4,
-  },
+  deleteBtnIcon: { fontSize: 14 },
+  arrow: { fontSize: 22, fontWeight: '300' },
+
+  loadingWrap: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 40,
+    paddingHorizontal: spacing.xl,
   },
-  emptyIcon: {
-    fontSize: 64,
-    marginBottom: 16,
+  emptyIcon: { fontSize: 64, marginBottom: spacing.md },
+  emptyTitle: { fontSize: 20, fontWeight: '700', marginBottom: spacing.xs },
+  emptySub: { fontSize: 14, textAlign: 'center', lineHeight: 20 },
+
+  hint: {
+    padding: spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(0,0,0,0.06)',
   },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  infoContainer: {
-    padding: 16,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(0,0,0,0.05)',
-  },
-  infoText: {
-    fontSize: 12,
-    textAlign: 'center',
-    lineHeight: 18,
-  },
+  hintText: { fontSize: 12, textAlign: 'center' },
 });

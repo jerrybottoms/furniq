@@ -1,7 +1,8 @@
 // Product Search Service - Phase 5c
-// Country-aware search with German shops + AWIN
+// Country-aware search with German shops + AWIN + SerpAPI
 import { FurnitureItem, SearchResult, AnalysisResult } from '../types';
 import { getCountryConfig, Country } from './supabase';
+import { searchWithSerpApi, isSerpApiConfigured, buildSerpApiQuery } from './serpApiSearch';
 
 const AMAZON_TAG = process.env.EXPO_PUBLIC_AMAZON_ASSOCIATE_TAG || 'max0c62-21';
 const AWIN_ID = process.env.EXPO_PUBLIC_AWIN_ID || 'furniturefinder';
@@ -21,6 +22,10 @@ export class ProductSearchService {
   /**
    * Search for similar furniture based on analysis result
    * Country-aware: shows relevant shops per country
+   * 
+   * Priority:
+   * 1. If SERPAPI_KEY available → use real Google Shopping results
+   * 2. Otherwise → fallback to mock data
    */
   static async searchSimilarProducts(
     analysis: AnalysisResult,
@@ -29,6 +34,32 @@ export class ProductSearchService {
     const query = this.buildSearchQuery(analysis);
     const countryConfig = country ? { code: country } : await getCountryConfig();
 
+    // Try SerpAPI first if key is configured
+    if (isSerpApiConfigured()) {
+      console.log('[ProductSearch] Using SerpAPI for real product search');
+      
+      const serpApiResults = await searchWithSerpApi(query, {
+        category: analysis.category,
+        style: analysis.style,
+        material: analysis.material,
+      });
+
+      if (serpApiResults.length > 0) {
+        console.log(`[ProductSearch] SerpAPI returned ${serpApiResults.length} products`);
+        return {
+          items: serpApiResults.slice(0, 20),
+          totalCount: serpApiResults.length,
+          query,
+          country: countryConfig.code,
+        };
+      }
+
+      console.log('[ProductSearch] SerpAPI returned no results, falling back to mock data');
+    }
+
+    // Fallback to mock data (original behavior)
+    console.log('[ProductSearch] Using mock product data');
+    
     // Determine which shops to search based on country
     const shops = this.getShopsForCountry(countryConfig.code);
 

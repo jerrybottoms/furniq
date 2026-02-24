@@ -1,4 +1,4 @@
-// Product Detail Screen - Shop-like product page
+// Product Detail Screen - Redesigned mit Full-bleed Image
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
@@ -15,6 +15,7 @@ import {
   KeyboardAvoidingView,
   Pressable,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import * as WebBrowser from 'expo-web-browser';
@@ -23,6 +24,7 @@ import { getProductById, getSimilarProducts, FurnitureItem } from '../data/catal
 import { useTheme } from '../context/ThemeContext';
 import { PriceTrackerService, PriceAlert } from '../services/priceTracker';
 import { shareProduct } from '../utils/share';
+import { typography, spacing, borderRadius, shadows } from '../theme';
 
 type RootStackParamList = {
   MainTabs: undefined;
@@ -37,7 +39,6 @@ export default function ProductDetailScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
   const route = useRoute<RouteProp<RootStackParamList, 'ProductDetail'>>();
   
-  // Handle case where params might be undefined
   const productId = route.params?.productId;
 
   const [product, setProduct] = useState<FurnitureItem | null>(null);
@@ -49,7 +50,6 @@ export default function ProductDetailScreen() {
   const [showAlertModal, setShowAlertModal] = useState(false);
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
   
-  // Animated header
   const scrollY = useRef(new Animated.Value(0)).current;
   const headerOpacity = scrollY.interpolate({
     inputRange: [0, 200],
@@ -66,7 +66,6 @@ export default function ProductDetailScreen() {
     }
   }, [productId]);
 
-  // Check for existing alert when product loads
   useEffect(() => {
     if (productId) {
       checkExistingAlert();
@@ -119,19 +118,19 @@ export default function ProductDetailScreen() {
     if (priceAlertActive && currentAlert) {
       setTargetPrice(currentAlert.targetPrice.toString());
     } else if (product) {
-      setTargetPrice(Math.floor(product.price * 0.8).toString()); // Default 20% less
+      setTargetPrice(Math.floor(product.price * 0.8).toString());
     }
     setShowAlertModal(true);
   };
 
   if (!productId) {
     return (
-      <View style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
         <Text style={{ color: theme.text }}>Keine Produkt-ID gefunden</Text>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={{ color: theme.primary, marginTop: 10 }}>Zurück</Text>
         </TouchableOpacity>
-      </View>
+      </SafeAreaView>
     );
   }
 
@@ -139,7 +138,6 @@ export default function ProductDetailScreen() {
     if (product?.affiliateUrl) {
       await WebBrowser.openBrowserAsync(product.affiliateUrl);
     } else {
-      // Fallback: open search for the product
       const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(product?.name || '')}+${encodeURIComponent(product?.shop || '')}`;
       await WebBrowser.openBrowserAsync(searchUrl);
     }
@@ -167,9 +165,9 @@ export default function ProductDetailScreen() {
 
   if (!product) {
     return (
-      <View style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
         <Text style={{ color: theme.text }}>Produkt wird geladen...</Text>
-      </View>
+      </SafeAreaView>
     );
   }
 
@@ -181,22 +179,22 @@ export default function ProductDetailScreen() {
       
       {/* Animated Header */}
       <Animated.View style={[styles.header, { opacity: headerOpacity, backgroundColor: theme.card }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Text style={[styles.backButtonTextSolid, { color: theme.text }]}>←</Text>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerButton}>
+          <Text style={[styles.headerIcon, { color: theme.text }]}>←</Text>
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: theme.text }]} numberOfLines={1}>{product?.name}</Text>
-        <TouchableOpacity onPress={handleShare} style={styles.shareButton}>
-          <Text style={[styles.shareButtonTextSolid, { color: theme.text }]}>↗</Text>
+        <TouchableOpacity onPress={handleShare} style={styles.headerButton}>
+          <Text style={[styles.headerIcon, { color: theme.text }]}>↗</Text>
         </TouchableOpacity>
       </Animated.View>
 
-      {/* Static Header (visible at top) */}
-      <View style={[styles.headerStatic, { backgroundColor: 'transparent' }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={[styles.backButton, { backgroundColor: isDark ? 'rgba(30,30,30,0.9)' : 'rgba(255,255,255,0.9)' }]}>
-          <Text style={[styles.backButtonText, { color: theme.text }]}>←</Text>
+      {/* Static Header */}
+      <View style={styles.headerStatic}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={[styles.headerButton, { backgroundColor: theme.background }]}>
+          <Text style={[styles.headerIconSolid, { color: theme.text }]}>←</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={handleShare} style={[styles.shareButton, { backgroundColor: isDark ? 'rgba(30,30,30,0.9)' : 'rgba(255,255,255,0.9)' }]}>
-          <Text style={[styles.shareButtonText, { color: theme.text }]}>↗</Text>
+        <TouchableOpacity onPress={handleShare} style={[styles.headerButton, { backgroundColor: theme.background }]}>
+          <Text style={[styles.headerIconSolid, { color: theme.text }]}>↗</Text>
         </TouchableOpacity>
       </View>
 
@@ -208,7 +206,7 @@ export default function ProductDetailScreen() {
           { useNativeDriver: true }
         )}
         scrollEventThrottle={16}>
-        {/* Hero Image */}
+        {/* Hero Image - Full Width */}
         <View style={[styles.heroContainer, { backgroundColor: theme.surface }]}>
           {Platform.OS === 'web' ? (
             <img
@@ -252,7 +250,7 @@ export default function ProductDetailScreen() {
             <Text style={[styles.price, { color: theme.primary }]}>
               {product.price.toLocaleString('de-DE')} {product.currency}
             </Text>
-            <Text style={[styles.priceSubtext, { color: theme.textMuted }]}>inkl. MwSt.</Text>
+            <Text style={[styles.priceSubtext, { color: theme.textTertiary }]}>inkl. MwSt.</Text>
           </View>
 
           {/* Description */}
@@ -285,7 +283,7 @@ export default function ProductDetailScreen() {
                 {similarProducts.map((item) => (
                   <TouchableOpacity
                     key={item.id}
-                    style={[styles.similarCard, { backgroundColor: theme.card }]}
+                    style={[styles.similarCard, { backgroundColor: theme.card }, shadows.card]}
                     onPress={() => handleSimilarPress(item.id)}
                   >
                     <View style={[styles.similarImage, { backgroundColor: theme.surface }]}>
@@ -310,12 +308,11 @@ export default function ProductDetailScreen() {
           )}
         </View>
 
-        {/* Bottom spacing for sticky button */}
-        <View style={{ height: 100 }} />
+        <View style={{ height: 120 }} />
       </Animated.ScrollView>
 
       {/* Sticky Action Bar */}
-      <View style={[styles.actionBar, { backgroundColor: theme.card, borderTopColor: theme.border }]}>
+      <View style={[styles.actionBar, { backgroundColor: theme.card, borderTopColor: theme.separator }]}>
         <TouchableOpacity 
           style={styles.actionButton}
           onPress={() => setIsFavorite(!isFavorite)}
@@ -342,7 +339,7 @@ export default function ProductDetailScreen() {
 
         {product.shop === 'Amazon' && (
           <TouchableOpacity style={[styles.amazonButton, { backgroundColor: '#FF9900' }]} onPress={handleAmazonSearch}>
-            <Text style={styles.amazonButtonText}>🔍 Auf Amazon suchen</Text>
+            <Text style={styles.amazonButtonText}>🔍</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -375,7 +372,7 @@ export default function ProductDetailScreen() {
               )}
 
               {priceAlertActive && currentAlert && (
-                <View style={[styles.alertInfoBox, { backgroundColor: theme.primary + '20', borderColor: theme.primary }]}>
+                <View style={[styles.alertInfoBox, { backgroundColor: theme.primaryLight, borderColor: theme.primary }]}>
                   <Text style={[styles.alertInfoText, { color: theme.primary }]}>
                     🔔 Alarm aktiv für {currentAlert.targetPrice}€
                   </Text>
@@ -388,24 +385,24 @@ export default function ProductDetailScreen() {
               )}
 
               <Text style={[styles.modalLabel, { color: theme.textSecondary }]}>
-                Wunschpreis (wird benachrichtigt wenn Preis sinkt)
+                Wunschpreis
               </Text>
               
               <View style={styles.modalInputRow}>
                 <TextInput
-                  style={[styles.modalInput, { backgroundColor: theme.surface, borderColor: theme.border, color: theme.text }]}
+                  style={[styles.modalInput, { backgroundColor: theme.surface, borderColor: theme.separator, color: theme.text }]}
                   value={targetPrice}
                   onChangeText={setTargetPrice}
                   keyboardType="numeric"
                   placeholder="0"
-                  placeholderTextColor={theme.textMuted}
+                  placeholderTextColor={theme.textTertiary}
                 />
                 <Text style={[styles.modalInputSuffix, { color: theme.textSecondary }]}>€</Text>
               </View>
 
               <View style={styles.modalButtons}>
                 <TouchableOpacity
-                  style={[styles.modalButton, styles.modalButtonSecondary, { borderColor: theme.border }]}
+                  style={[styles.modalButton, styles.modalButtonSecondary, { borderColor: theme.separator }]}
                   onPress={() => setShowAlertModal(false)}
                 >
                   <Text style={[styles.modalButtonText, { color: theme.text }]}>Abbrechen</Text>
@@ -436,21 +433,16 @@ export default function ProductDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+  container: { flex: 1 },
+  
+  // Header
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.md,
     paddingTop: 48,
-    paddingBottom: 12,
+    paddingBottom: spacing.sm,
     position: 'absolute',
     top: 0,
     left: 0,
@@ -461,9 +453,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.md,
     paddingTop: 48,
-    paddingBottom: 12,
+    paddingBottom: spacing.sm,
     position: 'absolute',
     top: 0,
     left: 0,
@@ -472,53 +464,30 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     flex: 1,
-    fontSize: 16,
-    fontWeight: '600',
+    ...typography.headline,
     textAlign: 'center',
-    marginHorizontal: 8,
+    marginHorizontal: spacing.sm,
   },
-  backButtonTextSolid: {
-    fontSize: 24,
-  },
-  shareButtonTextSolid: {
-    fontSize: 24,
-  },
-  backButton: {
+  headerButton: {
     width: 44,
     height: 44,
     borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
   },
-  backButtonText: {
+  headerIcon: {
     fontSize: 24,
   },
-  shareButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+  headerIconSolid: {
+    fontSize: 22,
   },
-  shareButtonText: {
-    fontSize: 20,
-  },
-  scrollView: {
-    flex: 1,
-  },
+  
+  scrollView: { flex: 1 },
+  
+  // Hero
   heroContainer: {
     width: width,
-    height: width * 0.75,
+    height: width * 0.8,
   },
   heroImagePlaceholder: {
     width: '100%',
@@ -529,77 +498,81 @@ const styles = StyleSheet.create({
   heroPlaceholderText: {
     fontSize: 80,
   },
+  
+  // Info
   infoContainer: {
-    padding: 20,
-    paddingTop: 24,
+    padding: spacing.lg,
+    paddingTop: spacing.lg,
   },
   shopBadge: {
     alignSelf: 'flex-start',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 4,
-    marginBottom: 12,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xxs,
+    borderRadius: borderRadius.small,
+    marginBottom: spacing.sm,
   },
   shopBadgeText: {
-    fontSize: 12,
+    ...typography.caption1,
     fontWeight: '600',
   },
   productName: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 12,
+    ...typography.title1,
+    marginBottom: spacing.sm,
   },
   tagsRow: {
     flexDirection: 'row',
-    gap: 8,
-    marginBottom: 16,
+    gap: spacing.xs,
+    marginBottom: spacing.md,
   },
   tag: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 4,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xxs,
+    borderRadius: borderRadius.small,
   },
   tagText: {
-    fontSize: 12,
+    ...typography.caption1,
   },
   priceContainer: {
-    marginBottom: 24,
+    marginBottom: spacing.lg,
   },
   price: {
-    fontSize: 28,
-    fontWeight: 'bold',
+    ...typography.title1,
+    color: '#1A5F5A',
   },
   priceSubtext: {
-    fontSize: 12,
+    ...typography.footnote,
     marginTop: 2,
   },
+  
+  // Description
   descriptionSection: {
-    marginBottom: 24,
+    marginBottom: spacing.lg,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 12,
+    ...typography.title3,
+    marginBottom: spacing.sm,
   },
   description: {
-    fontSize: 15,
-    lineHeight: 22,
+    ...typography.body,
+    lineHeight: 24,
   },
   expandText: {
-    fontSize: 14,
-    marginTop: 8,
+    ...typography.subhead,
     fontWeight: '500',
+    marginTop: spacing.xs,
   },
+  
+  // Similar
   similarSection: {
-    marginBottom: 24,
+    marginBottom: spacing.md,
   },
   similarScroll: {
-    paddingRight: 20,
+    paddingRight: spacing.lg,
   },
   similarCard: {
     width: 130,
-    marginRight: 12,
-    borderRadius: 12,
+    marginRight: spacing.sm,
+    borderRadius: borderRadius.medium,
     overflow: 'hidden',
   },
   similarImage: {
@@ -612,17 +585,19 @@ const styles = StyleSheet.create({
     paddingTop: 32,
   },
   similarName: {
-    fontSize: 12,
+    ...typography.caption1,
     fontWeight: '500',
-    paddingHorizontal: 8,
-    paddingTop: 8,
+    paddingHorizontal: spacing.xs,
+    paddingTop: spacing.xs,
   },
   similarPrice: {
-    fontSize: 12,
-    fontWeight: '600',
-    paddingHorizontal: 8,
-    paddingBottom: 8,
+    ...typography.caption1,
+    fontWeight: '700',
+    paddingHorizontal: spacing.xs,
+    paddingBottom: spacing.xs,
   },
+  
+  // Action Bar
   actionBar: {
     position: 'absolute',
     bottom: 0,
@@ -630,63 +605,48 @@ const styles = StyleSheet.create({
     right: 0,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
     paddingBottom: 28,
     borderTopWidth: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
+    ...shadows.modal,
   },
   actionButton: {
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  actionButtonActive: {
-    // Active state
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
   },
   actionIcon: {
     fontSize: 20,
     marginBottom: 2,
   },
-  actionIconActive: {
-    // Active state
-  },
   actionLabel: {
-    fontSize: 11,
-  },
-  actionLabelActive: {
-    fontWeight: '500',
+    ...typography.caption2,
   },
   ctaButton: {
     flex: 1,
-    paddingVertical: 14,
-    borderRadius: 12,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.medium,
     alignItems: 'center',
-    marginLeft: 16,
+    marginLeft: spacing.sm,
+    ...shadows.elevated,
   },
   ctaButtonText: {
-    color: '#FFF',
-    fontSize: 16,
-    fontWeight: 'bold',
+    ...typography.headline,
+    color: '#FFFFFF',
   },
   amazonButton: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 12,
+    width: 48,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.medium,
     alignItems: 'center',
-    marginLeft: 8,
+    marginLeft: spacing.xs,
   },
   amazonButtonText: {
-    color: '#FFF',
-    fontSize: 14,
-    fontWeight: 'bold',
+    fontSize: 20,
   },
 
-  // Modal Styles
+  // Modal
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
@@ -696,10 +656,10 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContent: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 24,
-    paddingBottom: 40,
+    borderTopLeftRadius: borderRadius.large,
+    borderTopRightRadius: borderRadius.large,
+    padding: spacing.lg,
+    paddingBottom: spacing.xxxl,
   },
   modalHandle: {
     width: 40,
@@ -707,87 +667,80 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     backgroundColor: '#888',
     alignSelf: 'center',
-    marginBottom: 20,
+    marginBottom: spacing.lg,
   },
   modalTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    marginBottom: 16,
+    ...typography.title2,
     textAlign: 'center',
+    marginBottom: spacing.md,
   },
   modalProductInfo: {
-    padding: 12,
-    borderRadius: 12,
-    marginBottom: 16,
+    padding: spacing.sm,
+    borderRadius: borderRadius.medium,
+    marginBottom: spacing.md,
   },
   modalProductName: {
-    fontSize: 14,
+    ...typography.subhead,
     fontWeight: '600',
-    marginBottom: 4,
+    marginBottom: spacing.xxs,
   },
   modalProductPrice: {
-    fontSize: 16,
-    fontWeight: 'bold',
+    ...typography.headline,
+    color: '#1A5F5A',
   },
   alertInfoBox: {
-    padding: 12,
-    borderRadius: 8,
+    padding: spacing.sm,
+    borderRadius: borderRadius.small,
     borderWidth: 1,
-    marginBottom: 16,
+    marginBottom: spacing.md,
     alignItems: 'center',
   },
   alertInfoText: {
-    fontSize: 14,
+    ...typography.subhead,
     fontWeight: '600',
   },
   alertTriggeredText: {
-    fontSize: 12,
+    ...typography.caption1,
     fontWeight: '500',
-    marginTop: 4,
+    marginTop: spacing.xxs,
   },
   modalLabel: {
-    fontSize: 14,
-    marginBottom: 8,
+    ...typography.subhead,
+    marginBottom: spacing.xs,
   },
   modalInputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: spacing.lg,
   },
   modalInput: {
     flex: 1,
     height: 52,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    fontSize: 20,
-    fontWeight: '600',
+    borderRadius: borderRadius.medium,
+    paddingHorizontal: spacing.md,
+    ...typography.title2,
     borderWidth: 1,
   },
   modalInputSuffix: {
-    fontSize: 20,
-    marginLeft: 12,
+    ...typography.title2,
+    marginLeft: spacing.sm,
   },
   modalButtons: {
     flexDirection: 'row',
-    gap: 12,
+    gap: spacing.sm,
   },
   modalButton: {
     flex: 1,
-    paddingVertical: 14,
-    borderRadius: 12,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.medium,
     alignItems: 'center',
   },
-  modalButtonPrimary: {
-    // backgroundColor set dynamically
-  },
+  modalButtonPrimary: {},
   modalButtonSecondary: {
     borderWidth: 1,
   },
-  modalButtonDanger: {
-    // backgroundColor set dynamically
-  },
+  modalButtonDanger: {},
   modalButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
+    ...typography.headline,
   },
 });

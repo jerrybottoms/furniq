@@ -1,4 +1,4 @@
-// Discover Screen - Feature 7
+// Discover Screen - Redesigned mit Apple/Pinterest Style
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
@@ -10,18 +10,16 @@ import {
   ScrollView,
   TextInput,
   Dimensions,
-  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { STYLES, CATEGORIES, getFilteredCatalog, FurnitureStyle, FurnitureCategory, FurnitureItem } from '../data/catalog';
 import { StyleProfileService } from '../services/styleProfile';
 import { PriceTrackerService } from '../services/priceTracker';
-import { getBudget, isWithinBudget } from '../services/budget';
+import { getBudget } from '../services/budget';
 import { useTheme } from '../context/ThemeContext';
+import { typography, spacing, borderRadius, shadows } from '../theme';
 
-// Budget options
 const BUDGET_OPTIONS = [
   { label: 'Alle', min: 0, max: undefined },
   { label: '€', min: 0, max: 200 },
@@ -34,7 +32,7 @@ const BUDGET_OPTIONS = [
 type BudgetOption = typeof BUDGET_OPTIONS[number];
 
 const { width } = Dimensions.get('window');
-const COLUMN_WIDTH = (width - 48) / 2;
+const COLUMN_WIDTH = (width - spacing.md * 3) / 2;
 
 export default function DiscoverScreen({ navigation }: any) {
   const { theme, isDark } = useTheme();
@@ -47,7 +45,6 @@ export default function DiscoverScreen({ navigation }: any) {
   const [trackedIds, setTrackedIds] = useState<Set<string>>(new Set());
   const [globalBudgetMax, setGlobalBudgetMax] = useState<number | null>(null);
 
-  // Load user preferences on mount
   useEffect(() => {
     const loadPreferences = async () => {
       const styles = await StyleProfileService.getTopStyles(3);
@@ -59,11 +56,9 @@ export default function DiscoverScreen({ navigation }: any) {
         setSelectedStyle(quiz);
       }
       
-      // Load tracked products
       const tracked = await PriceTrackerService.getTrackedProducts();
       setTrackedIds(new Set(tracked.map(t => t.id)));
       
-      // Load global budget from settings
       const budget = await getBudget();
       if (budget.maxBudget !== null && budget.maxBudget > 0) {
         setGlobalBudgetMax(budget.maxBudget);
@@ -72,9 +67,7 @@ export default function DiscoverScreen({ navigation }: any) {
     loadPreferences();
   }, []);
 
-  // Filter products
   const filteredProducts = useMemo(() => {
-    // Use selected budget OR custom price range
     let min: number | undefined;
     let max: number | undefined;
     
@@ -85,7 +78,6 @@ export default function DiscoverScreen({ navigation }: any) {
       min = customPriceRange.min ? parseInt(customPriceRange.min, 10) : undefined;
       max = customPriceRange.max ? parseInt(customPriceRange.max, 10) : undefined;
     } else if (globalBudgetMax !== null && globalBudgetMax > 0) {
-      // Apply global budget from settings if no local filters are set
       max = globalBudgetMax;
     }
     
@@ -97,12 +89,10 @@ export default function DiscoverScreen({ navigation }: any) {
     );
   }, [selectedStyle, selectedCategory, selectedBudget, customPriceRange, globalBudgetMax]);
 
-  // Open product detail
   const openProduct = (item: FurnitureItem) => {
     navigation.navigate('ProductDetail' as any, { productId: item.id });
   };
 
-  // Toggle filter
   const toggleStyle = (style: FurnitureStyle) => {
     setSelectedStyle(prev => prev === style ? null : style);
   };
@@ -120,7 +110,7 @@ export default function DiscoverScreen({ navigation }: any) {
         key={style}
         style={[
           styles.chip,
-          isSelected && [styles.chipSelected, { backgroundColor: theme.primary }],
+          isSelected && { backgroundColor: theme.primary },
           !isSelected && isRecommended && { backgroundColor: isDark ? '#3D3426' : '#FFF3E0', borderWidth: 1, borderColor: isDark ? '#5D4E37' : '#FFB74D' },
           !isSelected && !isRecommended && { backgroundColor: theme.surface },
         ]}
@@ -128,7 +118,7 @@ export default function DiscoverScreen({ navigation }: any) {
       >
         <Text style={[
           styles.chipText,
-          isSelected && styles.chipTextSelected,
+          isSelected && { color: '#FFFFFF' },
           !isSelected && { color: theme.text },
         ]}>
           {isRecommended && '⭐ '}{style}
@@ -144,16 +134,16 @@ export default function DiscoverScreen({ navigation }: any) {
       <TouchableOpacity
         key={category}
         style={[
-          styles.chip, 
-          styles.chipCategory, 
-          isSelected && [styles.chipSelected, { backgroundColor: theme.primary }],
+          styles.chip,
+          styles.chipCategory,
+          isSelected && { backgroundColor: theme.primary },
           !isSelected && { backgroundColor: theme.surface },
         ]}
         onPress={() => toggleCategory(category as FurnitureCategory)}
       >
         <Text style={[
-          styles.chipText, 
-          isSelected && styles.chipTextSelected,
+          styles.chipText,
+          isSelected && { color: '#FFFFFF' },
           !isSelected && { color: theme.text },
         ]}>
           {category}
@@ -167,47 +157,47 @@ export default function DiscoverScreen({ navigation }: any) {
     
     return (
       <TouchableOpacity
-        style={[styles.productCard, { backgroundColor: theme.card }]}
+        style={[styles.productCard, { backgroundColor: theme.card }, shadows.card]}
         onPress={() => openProduct(item)}
         activeOpacity={0.7}
       >
-        <Image
-          source={{ uri: item.imageUrl }}
-          style={[styles.productImage, { backgroundColor: theme.surface }]}
-        />
-        
-        {/* Track Button */}
-        <TouchableOpacity
-          style={[styles.trackButton, { backgroundColor: isDark ? 'rgba(30,30,30,0.9)' : 'rgba(255,255,255,0.9)' }]}
-          onPress={async () => {
-            if (isTracked) {
-              await PriceTrackerService.untrackProduct(item.id);
-              setTrackedIds(prev => {
-                const next = new Set(prev);
-                next.delete(item.id);
-                return next;
-              });
-            } else {
-              await PriceTrackerService.trackProduct(item);
-              setTrackedIds(prev => new Set(prev).add(item.id));
-            }
-          }}
-        >
-          <Text style={styles.trackButtonIcon}>{isTracked ? '🔔' : '🔕'}</Text>
-        </TouchableOpacity>
+        <View style={[styles.imageContainer, { backgroundColor: theme.surface }]}>
+          <Image
+            source={{ uri: item.imageUrl }}
+            style={styles.productImage}
+          />
+          
+          {/* Track Button */}
+          <TouchableOpacity
+            style={[styles.trackButton, { backgroundColor: theme.background }]}
+            onPress={async () => {
+              if (isTracked) {
+                await PriceTrackerService.untrackProduct(item.id);
+                setTrackedIds(prev => {
+                  const next = new Set(prev);
+                  next.delete(item.id);
+                  return next;
+                });
+              } else {
+                await PriceTrackerService.trackProduct(item);
+                setTrackedIds(prev => new Set(prev).add(item.id));
+              }
+            }}
+          >
+            <Text style={styles.trackButtonIcon}>{isTracked ? '🔔' : '🔕'}</Text>
+          </TouchableOpacity>
+        </View>
         
         <View style={styles.productInfo}>
+          <Text style={[styles.shopText, { color: theme.textTertiary }]}>
+            {item.shop}
+          </Text>
           <Text style={[styles.productName, { color: theme.text }]} numberOfLines={2}>
             {item.name}
           </Text>
-          <View style={styles.productMeta}>
-            <Text style={[styles.productPrice, { color: theme.primary }]}>
-              {item.price} {item.currency}
-            </Text>
-            <View style={[styles.shopBadge, { backgroundColor: theme.surface }]}>
-              <Text style={[styles.shopBadgeText, { color: theme.textSecondary }]}>{item.shop}</Text>
-            </View>
-          </View>
+          <Text style={[styles.productPrice, { color: theme.primary }]}>
+            {item.price} {item.currency}
+          </Text>
         </View>
       </TouchableOpacity>
     );
@@ -215,47 +205,38 @@ export default function DiscoverScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
-      <View style={[styles.header, { backgroundColor: isDark ? theme.card : theme.primary }]}>
-        <View style={styles.headerTop}>
-          <View>
-            <Text style={styles.title}>Entdecken</Text>
-            <Text style={[styles.subtitle, { color: isDark ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.8)' }]}>
-              {filteredProducts.length} Produkte gefunden
-            </Text>
-          </View>
-          
-          {/* Style Quiz Button */}
-          <TouchableOpacity
-            style={[styles.quizButton, { backgroundColor: isDark ? theme.surface : theme.primary }]}
-            onPress={() => navigation.navigate('StyleQuiz')}
-          >
-            <Text style={[styles.quizButtonText, { color: isDark ? theme.text : '#FFF' }]}>
-              {quizStyle ? '⭐' : '💡'} {quizStyle ? 'Stil' : 'Finden'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Quiz Result Banner */}
-        {quizStyle && (
-          <View style={[styles.quizBanner, { backgroundColor: isDark ? '#2A3A35' : '#E8F5F4' }]}>
-            <Text style={[styles.quizBannerText, { color: theme.primary }]}>
-              ✓ Dein Stil: <Text style={styles.quizBannerStyle}>{quizStyle}</Text>
-            </Text>
-            <TouchableOpacity onPress={() => setSelectedStyle(null)}>
-              <Text style={[styles.quizBannerClear, { color: theme.primary }]}>×</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+      {/* Header with Large Title */}
+      <View style={styles.header}>
+        <Text style={[styles.largeTitle, { color: theme.text }]}>Entdecken</Text>
+        <Text style={[styles.resultCount, { color: theme.textSecondary }]}>
+          {filteredProducts.length} Produkte
+        </Text>
       </View>
 
-      <ScrollView 
-        style={[styles.filtersContainer, { backgroundColor: theme.surface }]}
+      {/* Quiz Banner */}
+      {quizStyle && (
+        <TouchableOpacity
+          style={[styles.quizBanner, { backgroundColor: theme.primaryLight }]}
+          onPress={() => setSelectedStyle(null)}
+        >
+          <Text style={[styles.quizBannerText, { color: theme.primary }]}>
+            ✓ Dein Stil: <Text style={styles.quizBannerStyle}>{quizStyle}</Text>
+          </Text>
+          <Text style={[styles.quizBannerClear, { color: theme.primary }]}>×</Text>
+        </TouchableOpacity>
+      )}
+
+      {/* Filters ScrollView */}
+      <ScrollView
+        style={[styles.filtersContainer, { backgroundColor: theme.background }]}
         showsVerticalScrollIndicator={false}
       >
         {/* Recommended Styles */}
         {recommendedStyles.length > 0 && (
-          <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: theme.text }]}>⭐ Für dich</Text>
+          <View style={styles.filterSection}>
+            <Text style={[styles.filterLabel, { color: theme.textSecondary }]}>
+              ⭐ Für dich
+            </Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <View style={styles.chipRow}>
                 {recommendedStyles.map(style => renderStyleChip(style))}
@@ -265,24 +246,24 @@ export default function DiscoverScreen({ navigation }: any) {
         )}
 
         {/* Style Chips */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>Stil</Text>
+        <View style={styles.filterSection}>
+          <Text style={[styles.filterLabel, { color: theme.textSecondary }]}>Stil</Text>
           <View style={styles.chipRow}>
             {STYLES.map(style => renderStyleChip(style))}
           </View>
         </View>
 
         {/* Category Chips */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>Kategorie</Text>
+        <View style={styles.filterSection}>
+          <Text style={[styles.filterLabel, { color: theme.textSecondary }]}>Kategorie</Text>
           <View style={styles.chipRow}>
             {CATEGORIES.map(category => renderCategoryChip(category))}
           </View>
         </View>
 
         {/* Budget Chips */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>💰 Budget</Text>
+        <View style={styles.filterSection}>
+          <Text style={[styles.filterLabel, { color: theme.textSecondary }]}>💰 Budget</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <View style={styles.chipRow}>
               {BUDGET_OPTIONS.map((budget) => {
@@ -292,8 +273,8 @@ export default function DiscoverScreen({ navigation }: any) {
                     key={budget.label}
                     style={[
                       styles.budgetChip,
-                      isSelected && [styles.budgetChipSelected, { backgroundColor: theme.primary, borderColor: theme.primary }],
-                      !isSelected && { backgroundColor: theme.surface, borderColor: theme.border },
+                      isSelected && { backgroundColor: theme.primary, borderColor: theme.primary },
+                      !isSelected && { backgroundColor: theme.surface, borderColor: theme.separator },
                     ]}
                     onPress={() => {
                       setSelectedBudget(isSelected ? null : budget);
@@ -304,7 +285,7 @@ export default function DiscoverScreen({ navigation }: any) {
                   >
                     <Text style={[
                       styles.budgetChipText,
-                      isSelected && styles.budgetChipTextSelected,
+                      isSelected && { color: '#FFFFFF' },
                       !isSelected && { color: theme.text },
                     ]}>
                       {budget.label}
@@ -315,13 +296,12 @@ export default function DiscoverScreen({ navigation }: any) {
             </View>
           </ScrollView>
           
-          {/* Custom Price Input (show when "Alle" is selected or custom) */}
           {(!selectedBudget || selectedBudget.label === 'Alle') && (
             <View style={styles.customPriceRow}>
               <TextInput
-                style={[styles.priceInput, { backgroundColor: theme.card, borderColor: theme.border, color: theme.text }]}
+                style={[styles.priceInput, { backgroundColor: theme.surface, borderColor: theme.separator, color: theme.text }]}
                 placeholder="Min €"
-                placeholderTextColor={theme.textMuted}
+                placeholderTextColor={theme.textTertiary}
                 keyboardType="numeric"
                 value={customPriceRange.min}
                 onChangeText={(text) => {
@@ -331,9 +311,9 @@ export default function DiscoverScreen({ navigation }: any) {
               />
               <Text style={[styles.priceSeparator, { color: theme.textSecondary }]}>—</Text>
               <TextInput
-                style={[styles.priceInput, { backgroundColor: theme.card, borderColor: theme.border, color: theme.text }]}
+                style={[styles.priceInput, { backgroundColor: theme.surface, borderColor: theme.separator, color: theme.text }]}
                 placeholder="Max €"
-                placeholderTextColor={theme.textMuted}
+                placeholderTextColor={theme.textTertiary}
                 keyboardType="numeric"
                 value={customPriceRange.max}
                 onChangeText={(text) => {
@@ -345,29 +325,12 @@ export default function DiscoverScreen({ navigation }: any) {
           )}
         </View>
 
-        {/* Results Count */}
-        <View style={[styles.resultsBar, { borderTopColor: theme.border }]}>
-          <View style={styles.resultsLeft}>
-            <Text style={[styles.resultsCount, { color: theme.textSecondary }]}>
-              {filteredProducts.length} Produkte
-            </Text>
-            {globalBudgetMax !== null && globalBudgetMax > 0 && !selectedBudget && !customPriceRange.min && !customPriceRange.max && (
-              <View style={[styles.globalBudgetBadge, { backgroundColor: theme.primary }]}>
-                <Text style={styles.globalBudgetBadgeText}>💰 bis {globalBudgetMax}€</Text>
-              </View>
-            )}
+        {/* Global Budget Badge */}
+        {globalBudgetMax !== null && globalBudgetMax > 0 && !selectedBudget && !customPriceRange.min && !customPriceRange.max && (
+          <View style={[styles.globalBudgetBadge, { backgroundColor: theme.primary }]}>
+            <Text style={styles.globalBudgetText}>💰 bis {globalBudgetMax}€</Text>
           </View>
-          {(selectedStyle || selectedCategory || selectedBudget || customPriceRange.min || customPriceRange.max) && (
-            <TouchableOpacity onPress={() => {
-              setSelectedStyle(null);
-              setSelectedCategory(null);
-              setSelectedBudget(null);
-              setCustomPriceRange({ min: '', max: '' });
-            }}>
-              <Text style={[styles.clearFilter, { color: theme.primary }]}>Filter löschen</Text>
-            </TouchableOpacity>
-          )}
-        </View>
+        )}
       </ScrollView>
 
       {/* Product Grid */}
@@ -376,12 +339,17 @@ export default function DiscoverScreen({ navigation }: any) {
         renderItem={renderProduct}
         keyExtractor={(item) => item.id}
         numColumns={2}
-        contentContainerStyle={[styles.productList, { backgroundColor: theme.background }]}
+        contentContainerStyle={styles.productList}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
-          <View style={styles.empty}>
-            <Text style={[styles.emptyText, { color: theme.textSecondary }]}>Keine Produkte gefunden</Text>
-            <Text style={[styles.emptySubtext, { color: theme.textMuted }]}>Versuche andere Filter</Text>
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyEmoji}>🔍</Text>
+            <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
+              Keine Produkte gefunden
+            </Text>
+            <Text style={[styles.emptySubtext, { color: theme.textTertiary }]}>
+              Versuche andere Filter
+            </Text>
           </View>
         }
       />
@@ -393,229 +361,182 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  
+  // Header
   header: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 12,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.xs,
   },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#FFF',
+  largeTitle: {
+    ...typography.largeTitle,
   },
-  subtitle: {
-    fontSize: 14,
-    marginTop: 2,
-  },
-  filtersContainer: {
-    maxHeight: 280,
-  },
-  section: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-  },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  chipRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  chipCategory: {},
-  chipSelected: {},
-  chipRecommended: {},
-  chipText: {
-    fontSize: 13,
-  },
-  chipTextSelected: {
-    color: '#FFF',
-    fontWeight: '600',
-  },
-  priceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  priceInput: {
-    flex: 1,
-    height: 40,
-    borderRadius: 8,
-    paddingHorizontal: 14,
-    fontSize: 14,
-    borderWidth: 1,
-  },
-  priceSeparator: {
-    marginHorizontal: 12,
-  },
-  resultsBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderTopWidth: 1,
-  },
-  resultsLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  resultsCount: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  globalBudgetBadge: {
-    paddingVertical: 3,
-    paddingHorizontal: 8,
-    borderRadius: 10,
-  },
-  globalBudgetBadgeText: {
-    color: '#FFF',
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  clearFilter: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  productList: {
-    padding: 16,
-    paddingTop: 8,
-  },
-  productCard: {
-    width: COLUMN_WIDTH,
-    borderRadius: 12,
-    marginRight: 16,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    overflow: 'hidden',
-  },
-  productImage: {
-    width: '100%',
-    height: COLUMN_WIDTH,
-  },
-  productInfo: {
-    padding: 10,
-  },
-  productName: {
-    fontSize: 13,
-    fontWeight: '600',
-    marginBottom: 6,
-    height: 36,
-  },
-  productMeta: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  productPrice: {
-    fontSize: 15,
-    fontWeight: 'bold',
-  },
-  shopBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  shopBadgeText: {
-    fontSize: 10,
-  },
-  empty: {
-    alignItems: 'center',
-    paddingTop: 40,
-  },
-  emptyText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  emptySubtext: {
-    fontSize: 14,
-    marginTop: 4,
+  resultCount: {
+    ...typography.subhead,
+    marginTop: spacing.xxs,
   },
   
-  // Style Quiz
-  headerTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  quizButton: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  quizButtonText: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
+  // Quiz Banner
   quizBanner: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 10,
-    marginTop: 12,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    marginHorizontal: spacing.md,
+    borderRadius: borderRadius.medium,
+    marginBottom: spacing.sm,
   },
   quizBannerText: {
-    fontSize: 14,
+    ...typography.subhead,
   },
   quizBannerStyle: {
-    fontWeight: 'bold',
+    fontWeight: '700',
   },
   quizBannerClear: {
     fontSize: 20,
-    paddingHorizontal: 8,
+    fontWeight: '600',
+    paddingHorizontal: spacing.xs,
   },
   
-  // Budget Chips
+  // Filters
+  filtersContainer: {
+    maxHeight: 260,
+  },
+  filterSection: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+  },
+  filterLabel: {
+    ...typography.footnote,
+    fontWeight: '500',
+    marginBottom: spacing.xs,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+  },
+  chip: {
+    paddingHorizontal: spacing.sm + 4,
+    paddingVertical: spacing.xs + 2,
+    borderRadius: borderRadius.full,
+  },
+  chipCategory: {},
+  chipSelected: {},
+  chipText: {
+    ...typography.subhead,
+  },
+  
+  // Budget
   budgetChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-    marginRight: 10,
-    borderWidth: 2,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs + 2,
+    borderRadius: borderRadius.full,
+    marginRight: spacing.xs,
+    borderWidth: 1,
   },
-  budgetChipSelected: {},
   budgetChipText: {
-    fontSize: 16,
+    ...typography.subhead,
     fontWeight: '600',
-  },
-  budgetChipTextSelected: {
-    color: '#FFF',
   },
   customPriceRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 12,
+    marginTop: spacing.sm,
+  },
+  priceInput: {
+    flex: 1,
+    height: 40,
+    borderRadius: borderRadius.small,
+    paddingHorizontal: spacing.sm,
+    fontSize: 14,
+    borderWidth: 1,
+  },
+  priceSeparator: {
+    marginHorizontal: spacing.sm,
+  },
+  globalBudgetBadge: {
+    alignSelf: 'flex-start',
+    marginLeft: spacing.md,
+    marginTop: spacing.xs,
+    paddingVertical: spacing.xxs,
+    paddingHorizontal: spacing.sm,
+    borderRadius: borderRadius.small,
+  },
+  globalBudgetText: {
+    ...typography.caption1,
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
+  
+  // Product Grid
+  productList: {
+    padding: spacing.md,
+    paddingTop: spacing.sm,
+  },
+  productCard: {
+    width: COLUMN_WIDTH,
+    borderRadius: borderRadius.medium,
+    marginRight: spacing.sm,
+    marginBottom: spacing.md,
+    overflow: 'hidden',
+  },
+  imageContainer: {
+    position: 'relative',
+  },
+  productImage: {
+    width: '100%',
+    height: COLUMN_WIDTH * 0.7,
   },
   trackButton: {
     position: 'absolute',
-    top: 8,
-    right: 8,
+    top: spacing.xs,
+    right: spacing.xs,
     width: 32,
     height: 32,
     borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-    elevation: 2,
+    ...shadows.card,
   },
   trackButtonIcon: {
     fontSize: 14,
+  },
+  productInfo: {
+    padding: spacing.sm,
+  },
+  shopText: {
+    ...typography.caption2,
+    marginBottom: 2,
+  },
+  productName: {
+    ...typography.subhead,
+    fontWeight: '600',
+    marginBottom: spacing.xxs,
+    height: 36,
+  },
+  productPrice: {
+    ...typography.body,
+    fontWeight: '700',
+  },
+  
+  // Empty
+  emptyContainer: {
+    alignItems: 'center',
+    paddingTop: spacing.xxxl,
+  },
+  emptyEmoji: {
+    fontSize: 48,
+    marginBottom: spacing.sm,
+  },
+  emptyText: {
+    ...typography.headline,
+  },
+  emptySubtext: {
+    ...typography.subhead,
+    marginTop: spacing.xxs,
   },
 });

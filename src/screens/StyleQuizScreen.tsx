@@ -1,11 +1,10 @@
-// Style Quiz Screen - Interaktiver Stil-Fragebogen
-import React, { useState, useEffect } from 'react';
+// Style Quiz Screen - Redesigned mit Apple Style
+import React, { useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  Image,
   ScrollView,
   SafeAreaView,
   Dimensions,
@@ -17,6 +16,7 @@ import { StyleProfileService } from '../services/styleProfile';
 import { QuizAnswer, FurnitureStyle, QuizResult } from '../types';
 import QuizOption from '../components/QuizOption';
 import { useTheme } from '../context/ThemeContext';
+import { typography, spacing, borderRadius, shadows } from '../theme';
 
 type RootStackParamList = {
   MainTabs: undefined;
@@ -25,7 +25,6 @@ type RootStackParamList = {
 };
 
 const { width } = Dimensions.get('window');
-const OPTION_WIDTH = (width - 48) / 2;
 
 type QuizState = 'intro' | 'question' | 'result';
 
@@ -39,16 +38,14 @@ export default function StyleQuizScreen() {
 
   const question = QUIZ_QUESTIONS[currentQuestion];
   const totalQuestions = QUIZ_QUESTIONS.length;
-  const progress = ((currentQuestion + 1) / totalQuestions) * 100;
+  const progress = (currentQuestion + 1) / totalQuestions;
 
   const handleSelectOption = (optionKey: 'A' | 'B' | 'C' | 'D') => {
     const newAnswers = [...answers, { questionId: question.id, selectedOption: optionKey }];
     setAnswers(newAnswers);
 
     if (currentQuestion < totalQuestions - 1) {
-      setTimeout(() => {
-        setCurrentQuestion(currentQuestion + 1);
-      }, 200);
+      setTimeout(() => setCurrentQuestion(currentQuestion + 1), 200);
     } else {
       const calculatedStyle = calculateQuizResult(newAnswers);
       setResult(calculatedStyle);
@@ -82,42 +79,64 @@ export default function StyleQuizScreen() {
     navigation.navigate('MainTabs', { screen: 'Discover' });
   };
 
-  // ========== INTRO SCREEN ==========
+  // ══════════════════════════════
+  //  INTRO
+  // ══════════════════════════════
   if (state === 'intro') {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
-        <View style={styles.introContainer}>
-          <Text style={styles.introEmoji}>💡</Text>
-          <Text style={[styles.introTitle, { color: theme.primary }]}>Finde deinen Einrichtungsstil</Text>
-          <Text style={[styles.introSubtitle, { color: theme.textSecondary }]}>
-            Beantworte 5 kurze Fragen und entdecke, welcher Einrichtungsstil am besten zu dir passt.
-          </Text>
-
-          <View style={styles.introFeatures}>
-            {[
-              { icon: '❓', text: '5 einfache Fragen' },
-              { icon: '🎯', text: 'Persönliche Empfehlungen' },
-              { icon: '⚡', text: 'In nur 2 Minuten' },
-            ].map((f) => (
-              <View key={f.text} style={styles.featureRow}>
-                <Text style={styles.featureIcon}>{f.icon}</Text>
-                <Text style={[styles.featureText, { color: theme.text }]}>{f.text}</Text>
-              </View>
-            ))}
+        <View style={[styles.introContainer, { padding: spacing.xl }]}>
+          {/* Hero */}
+          <View style={[styles.introHero, { backgroundColor: theme.primaryLight }]}>
+            <Text style={styles.introEmoji}>💡</Text>
           </View>
 
-          <TouchableOpacity
-            style={[styles.startButton, { backgroundColor: theme.primary }]}
-            onPress={() => setState('question')}
-          >
-            <Text style={styles.startButtonText}>Quiz starten</Text>
-          </TouchableOpacity>
+          <View style={styles.introBody}>
+            <Text style={[styles.introTitle, { color: theme.primary }]}>Finde deinen{'\n'}Einrichtungsstil</Text>
+            <Text style={[styles.introSub, { color: theme.textSecondary, lineHeight: 24 }]}>
+              Beantworte 5 kurze Fragen und entdecke, welcher Einrichtungsstil am besten zu dir passt.
+            </Text>
+
+            <View style={[styles.featureBox, { backgroundColor: theme.surface }]}>
+              {[
+                { icon: '❓', text: '5 einfache Fragen' },
+                { icon: '🎯', text: 'Persönliche Empfehlungen' },
+                { icon: '⚡', text: 'In nur 2 Minuten' },
+              ].map((f) => (
+                <View 
+                  key={f.text} 
+                  style={[styles.featureRow, { marginBottom: spacing.md, paddingHorizontal: spacing.lg }]}
+                >
+                  <Text style={[styles.featureIcon, { fontSize: 24 }]}>{f.icon}</Text>
+                  <Text style={[styles.featureText, { color: theme.text }]}>{f.text}</Text>
+                </View>
+              ))}
+            </View>
+
+            <TouchableOpacity
+              style={[
+                styles.startBtn, 
+                { 
+                  backgroundColor: theme.primary, 
+                  borderRadius: borderRadius.full,
+                  paddingVertical: spacing.md,
+                }, 
+                shadows.elevated
+              ]}
+              onPress={() => setState('question')}
+              activeOpacity={0.85}
+            >
+              <Text style={[styles.startBtnText, typography.headline]}>Quiz starten</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </SafeAreaView>
     );
   }
 
-  // ========== RESULT SCREEN ==========
+  // ══════════════════════════════
+  //  RESULT
+  // ══════════════════════════════
   if (state === 'result') {
     const styleEmojis: Record<FurnitureStyle, string> = {
       'Skandinavisch': '🌿',
@@ -127,7 +146,6 @@ export default function StyleQuizScreen() {
       'Boho': '🌸',
       'Minimalistisch': '⬜',
     };
-
     const styleDescriptions: Record<FurnitureStyle, string> = {
       'Skandinavisch': 'Du liebst helle, natürliche Materialien und ein gemütliches, aber aufgeräumtes Zuhause.',
       'Modern': 'Du schätzt klare Linien, elegante Materialien und zeitloses Design.',
@@ -139,58 +157,92 @@ export default function StyleQuizScreen() {
 
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
-        <ScrollView contentContainerStyle={styles.resultContainer}>
-          <Text style={styles.resultEmoji}>{styleEmojis[result || 'Modern']}</Text>
-          <Text style={[styles.resultTitle, { color: theme.textSecondary }]}>Dein Stil ist</Text>
-          <Text style={[styles.resultStyle, { color: theme.primary }]}>{result}</Text>
-          <Text style={[styles.resultDescription, { color: theme.text }]}>
-            {styleDescriptions[result || 'Modern']}
-          </Text>
-
-          <View style={[styles.resultBadge, { backgroundColor: theme.surface }]}>
-            <Text style={[styles.resultBadgeText, { color: theme.primary }]}>
-              ✓ Stil gespeichert für personalisierte Empfehlungen
-            </Text>
+        <ScrollView 
+          contentContainerStyle={[styles.resultContainer, { padding: spacing.xl }]} 
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Result hero */}
+          <View style={[styles.resultHero, { backgroundColor: theme.primaryLight }]}>
+            <Text style={styles.resultEmoji}>{styleEmojis[result || 'Modern']}</Text>
           </View>
 
-          <TouchableOpacity
-            style={[styles.viewProductsButton, { backgroundColor: theme.primary }]}
-            onPress={handleViewProducts}
-          >
-            <Text style={styles.viewProductsButtonText}>Passende Produkte entdecken</Text>
-          </TouchableOpacity>
+          <View style={styles.resultBody}>
+            <Text style={[styles.resultLabel, { color: theme.textSecondary }]}>Dein Stil ist</Text>
+            <Text style={[styles.resultStyle, { color: theme.primary }]}>{result}</Text>
+            <Text style={[styles.resultDesc, { color: theme.text, lineHeight: 24 }]}>
+              {styleDescriptions[result || 'Modern']}
+            </Text>
 
-          <TouchableOpacity style={styles.restartButton} onPress={handleRestart}>
-            <Text style={[styles.restartButtonText, { color: theme.textMuted }]}>Quiz wiederholen</Text>
-          </TouchableOpacity>
+            <View style={[styles.savedBadge, { backgroundColor: theme.primaryLight, borderRadius: borderRadius.medium, padding: spacing.md }]}>
+              <Text style={[styles.savedBadgeText, { color: theme.primary }]}>
+                ✓ Stil gespeichert für personalisierte Empfehlungen
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              style={[
+                styles.viewBtn, 
+                { 
+                  backgroundColor: theme.primary, 
+                  borderRadius: borderRadius.full,
+                  paddingVertical: spacing.md,
+                }, 
+                shadows.elevated
+              ]}
+              onPress={handleViewProducts}
+              activeOpacity={0.85}
+            >
+              <Text style={[styles.viewBtnText, typography.headline]}>Passende Produkte entdecken</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.restartBtn} onPress={handleRestart}>
+              <Text style={[styles.restartBtnText, { color: theme.textTertiary }]}>Quiz wiederholen</Text>
+            </TouchableOpacity>
+          </View>
         </ScrollView>
       </SafeAreaView>
     );
   }
 
-  // ========== QUESTION SCREEN ==========
+  // ══════════════════════════════
+  //  QUESTION
+  // ══════════════════════════════
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
-      <View style={[styles.header, { borderBottomColor: theme.border }]}>
-        <TouchableOpacity onPress={handleBack} style={styles.backButton}>
-          <Text style={[styles.backButtonText, { color: theme.primary }]}>←</Text>
+      {/* Progress header */}
+      <View style={[styles.questionHeader, { 
+        paddingHorizontal: spacing.md, 
+        paddingVertical: spacing.sm, 
+        borderBottomColor: theme.separator 
+      }]}>
+        <TouchableOpacity onPress={handleBack} style={styles.backBtn}>
+          <Text style={[styles.backBtnText, { color: theme.primary }]}>←</Text>
         </TouchableOpacity>
-        <View style={styles.progressContainer}>
-          <View style={[styles.progressBar, { backgroundColor: theme.border }]}>
-            <View style={[styles.progressFill, { width: `${progress}%`, backgroundColor: theme.primary }]} />
+        <View style={styles.progressWrap}>
+          {/* Progress bar */}
+          <View style={[styles.progressTrack, { 
+            backgroundColor: theme.separator, 
+            height: 6, 
+            borderRadius: borderRadius.small 
+          }]}>
+            <View style={[styles.progressFill, { width: `${progress * 100}%`, backgroundColor: theme.primary }]} />
           </View>
-          <Text style={[styles.progressText, { color: theme.textMuted }]}>
-            Frage {currentQuestion + 1} von {totalQuestions}
+          <Text style={[styles.progressLabel, { color: theme.textTertiary }]}>
+            {currentQuestion + 1} / {totalQuestions}
           </Text>
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.questionContainer}>
+      <ScrollView 
+        contentContainerStyle={[styles.questionContent, { padding: spacing.lg }]} 
+        showsVerticalScrollIndicator={false}
+      >
         <Text style={[styles.questionText, { color: theme.primary }]}>{question.question}</Text>
         {question.subtitle && (
-          <Text style={[styles.subtitleText, { color: theme.textSecondary }]}>{question.subtitle}</Text>
+          <Text style={[styles.questionSub, { color: theme.textSecondary }]}>{question.subtitle}</Text>
         )}
-        <View style={styles.optionsGrid}>
+
+        <View style={[styles.optionsGrid, { gap: spacing.sm }]}>
           {question.options.map((option) => (
             <QuizOption
               key={option.key}
@@ -214,40 +266,70 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
 
   // Intro
-  introContainer: { flex: 1, padding: 24, justifyContent: 'center', alignItems: 'center' },
-  introEmoji: { fontSize: 64, marginBottom: 20 },
-  introTitle: { fontSize: 28, fontWeight: 'bold', textAlign: 'center', marginBottom: 12 },
-  introSubtitle: { fontSize: 16, textAlign: 'center', lineHeight: 24, marginBottom: 32 },
-  introFeatures: { width: '100%', marginBottom: 40 },
-  featureRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 16, paddingHorizontal: 20 },
-  featureIcon: { fontSize: 24, marginRight: 16 },
-  featureText: { fontSize: 16 },
-  startButton: { paddingVertical: 16, paddingHorizontal: 48, borderRadius: 30, width: '100%' },
-  startButtonText: { color: '#FFF', fontSize: 18, fontWeight: 'bold', textAlign: 'center' },
-
-  // Question
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1 },
-  backButton: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
-  backButtonText: { fontSize: 24 },
-  progressContainer: { flex: 1, marginLeft: 12 },
-  progressBar: { height: 6, borderRadius: 3, overflow: 'hidden' },
-  progressFill: { height: '100%', borderRadius: 3 },
-  progressText: { fontSize: 12, marginTop: 4, textAlign: 'right' },
-  questionContainer: { padding: 20 },
-  questionText: { fontSize: 22, fontWeight: 'bold', textAlign: 'center', marginBottom: 8 },
-  subtitleText: { fontSize: 14, textAlign: 'center', marginBottom: 24 },
-  optionsGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
+  introContainer: { flex: 1 },
+  introHero: {
+    height: 220,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
+  },
+  introEmoji: { fontSize: 64 },
+  introBody: { flex: 1, justifyContent: 'center' },
+  introTitle: { ...typography.title1, marginBottom: spacing.sm },
+  introSub: { ...typography.body, marginBottom: spacing.lg },
+  featureBox: { borderRadius: borderRadius.large, padding: spacing.md, marginBottom: spacing.lg },
+  featureRow: { flexDirection: 'row', alignItems: 'center' },
+  featureIcon: { marginRight: spacing.sm, width: 28 },
+  featureText: { ...typography.body },
+  startBtn: {
+    alignItems: 'center',
+  },
+  startBtnText: { color: '#FFF' },
 
   // Result
-  resultContainer: { padding: 24, alignItems: 'center' },
-  resultEmoji: { fontSize: 80, marginBottom: 16 },
-  resultTitle: { fontSize: 18, marginBottom: 8 },
-  resultStyle: { fontSize: 32, fontWeight: 'bold', marginBottom: 16 },
-  resultDescription: { fontSize: 16, textAlign: 'center', lineHeight: 24, marginBottom: 24 },
-  resultBadge: { padding: 16, borderRadius: 12, marginBottom: 32 },
-  resultBadgeText: { fontSize: 14, textAlign: 'center' },
-  viewProductsButton: { paddingVertical: 16, paddingHorizontal: 32, borderRadius: 30, width: '100%', marginBottom: 16 },
-  viewProductsButtonText: { color: '#FFF', fontSize: 18, fontWeight: 'bold', textAlign: 'center' },
-  restartButton: { paddingVertical: 12 },
-  restartButtonText: { fontSize: 16 },
+  resultContainer: { paddingBottom: spacing.xxxl },
+  resultHero: {
+    height: 220,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
+  },
+  resultEmoji: { fontSize: 72 },
+  resultBody: { alignItems: 'center', marginTop: spacing.lg },
+  resultLabel: { ...typography.body, marginBottom: spacing.xs },
+  resultStyle: { ...typography.largeTitle, marginBottom: spacing.sm },
+  resultDesc: { ...typography.body, textAlign: 'center', marginBottom: spacing.lg },
+  savedBadge: {
+    marginBottom: spacing.lg,
+  },
+  savedBadgeText: { ...typography.subhead, textAlign: 'center' },
+  viewBtn: {
+    width: '100%',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  viewBtnText: { color: '#FFF' },
+  restartBtn: { paddingVertical: spacing.sm },
+  restartBtnText: { ...typography.subhead },
+
+  // Question
+  questionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  backBtn: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
+  backBtnText: { ...typography.title2 },
+  progressWrap: { flex: 1, marginLeft: spacing.sm },
+  progressTrack: {
+    overflow: 'hidden',
+  },
+  progressFill: { height: '100%' },
+  progressLabel: { ...typography.caption1, marginTop: 4, textAlign: 'right' },
+  questionContent: {},
+  questionText: { ...typography.title2, textAlign: 'center', marginBottom: spacing.xs },
+  questionSub: { ...typography.subhead, textAlign: 'center', marginBottom: spacing.lg },
+  optionsGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
 });
